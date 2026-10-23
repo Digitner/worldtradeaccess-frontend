@@ -1,0 +1,140 @@
+/* ===== Motion layer: loads after global.css ===== */
+@keyframes revealIn{from{opacity:0;translate:0 26px}to{opacity:1;translate:0 0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes pageIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes shine{to{background-position:200% center}}
+@keyframes floaty{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(30px,-24px,0) scale(1.12)}}
+@keyframes pulseRing{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 45%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
+@keyframes ripple{to{transform:scale(3.2);opacity:0}}
+@keyframes navDrop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+/* scroll reveal (classes added by src/utils/animations.js) */
+.reveal{opacity:0;translate:0 26px}
+.reveal.in{animation:revealIn .65s cubic-bezier(.2,.7,.2,1) var(--d,0s) both}
+
+/* page change */
+#app.page-enter>*{animation:pageIn .5s cubic-bezier(.2,.7,.2,1) both}
+
+/* hero entrance + ambient glow */
+.hero .inner>*,.hero2>*{animation:fadeUp .8s cubic-bezier(.2,.7,.2,1) both}
+.hero2>*:nth-child(2){animation-delay:.18s}
+.hero h1{animation:fadeUp .8s .08s cubic-bezier(.2,.7,.2,1) both}
+.hero .lede{animation:fadeUp .8s .2s cubic-bezier(.2,.7,.2,1) both}
+.hsearch{animation:fadeUp .8s .32s cubic-bezier(.2,.7,.2,1) both}
+.hero::after{content:"";position:absolute;width:420px;height:420px;right:-90px;top:-120px;border-radius:50%;background:radial-gradient(circle,rgba(217,178,98,.28),transparent 68%);animation:floaty 11s ease-in-out infinite;pointer-events:none}
+.hero h1 em{background:linear-gradient(90deg,#e2bf72 0%,#fff0c4 25%,#e2bf72 50%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shine 5s linear infinite}
+
+/* nav */
+.topbar{transition:box-shadow .3s,background .3s}
+.topbar.scrolled{box-shadow:0 8px 28px rgba(7,24,49,.14)}
+.navlinks a{position:relative}
+.navlinks a::after{content:"";position:absolute;left:12px;right:12px;bottom:3px;height:2px;border-radius:2px;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform .28s}
+.navlinks a:hover::after,.navlinks a.active::after{transform:scaleX(1)}
+.brand .logo-img{transition:transform .4s}
+.brand:hover .logo-img{transform:rotate(-6deg) scale(1.06)}
+.mobile-menu.open{animation:navDrop .28s ease both}
+.mobile-menu.open a{animation:fadeUp .35s both}
+.mobile-menu.open a:nth-child(2){animation-delay:.04s}.mobile-menu.open a:nth-child(3){animation-delay:.08s}
+.mobile-menu.open a:nth-child(4){animation-delay:.12s}.mobile-menu.open a:nth-child(5){animation-delay:.16s}
+.mobile-menu.open a:nth-child(6){animation-delay:.2s}.mobile-menu.open a:nth-child(7){animation-delay:.24s}
+
+/* scroll progress bar */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;width:100%;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,var(--blue),var(--gold));z-index:400;pointer-events:none}
+
+/* cards, images, buttons */
+.card,.kpi,.news-item,.fund-item,.frail{transition:transform .25s,box-shadow .25s,border-color .25s}
+.kpi:hover,.news-item:hover,.fund-item:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.mkt-cover img,.news-item .ph img,.fund-item .ph img,.frail .ph img{transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.mkt:hover .mkt-cover img,.news-item:hover .ph img,.fund-item:hover .ph img,.frail:hover .ph img{transform:scale(1.08)}
+.cat .ph .ic{transition:transform .3s}
+.cat:hover .ph .ic{transform:scale(1.12) rotate(-6deg)}
+.mkt-cta{transition:letter-spacing .25s,color .2s}
+.mkt:hover .mkt-cta{letter-spacing:.4px}
+.btn{position:relative;overflow:hidden}
+.btn:active{transform:translateY(0) scale(.97)}
+.btn-primary:hover{box-shadow:0 12px 30px rgba(10,31,61,.32)}
+.btn-gold:hover{box-shadow:0 10px 26px rgba(217,178,98,.45)}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+.live-dot{animation:pulseRing 1.8s infinite}
+.badge-ai:not(.off){animation:pulseRing 2.4s infinite}
+
+/* staggered match results */
+.match:nth-child(2){animation-delay:.06s}.match:nth-child(3){animation-delay:.12s}
+.match:nth-child(4){animation-delay:.18s}.match:nth-child(5){animation-delay:.24s}
+.match:nth-child(n+6){animation-delay:.3s}
+
+/* smooth theme + inputs */
+input,select,textarea{transition:border-color .2s,box-shadow .2s}
+html{scroll-behavior:smooth}
+
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1;translate:none}
+  .scroll-progress{display:none}
+}
+
+/* ===== More motion: variants, tilt, glow, orbs, words, back-to-top ===== */
+@keyframes popIn{from{opacity:0;translate:0 22px;scale:.9}to{opacity:1;translate:0 0;scale:1}}
+@keyframes slideIn{from{opacity:0;translate:-36px 0}to{opacity:1;translate:0 0}}
+@keyframes wordIn{from{opacity:0;transform:translateY(.55em) rotateX(-45deg);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes orbA{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-60px,40px,0) scale(1.2)}}
+@keyframes orbB{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(50px,-50px,0) scale(.85)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(24px) scale(.94)}60%{transform:translateY(-4px) scale(1.02)}to{opacity:1;transform:none}}
+@keyframes underline{from{width:0}to{width:56px}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes sweep{to{background-position:-60% 0}}
+
+.reveal.pop{scale:.92}
+.reveal.slide{translate:-36px 0}
+.reveal.in.pop{animation-name:popIn}
+.reveal.in.slide{animation-name:slideIn}
+
+/* word-by-word headings (spans added by utils/animations.js) */
+.split{perspective:700px}
+.split .w{display:inline-block;transform-origin:50% 100%;animation:wordIn .75s cubic-bezier(.2,.8,.2,1) calc(var(--i,0)*60ms + .12s) both}
+.hero h1.split{animation:none}
+
+/* floating orbs in the hero */
+.hero .inner{z-index:1;translate:0 var(--py,0px)}
+.orb{position:absolute;z-index:0;border-radius:50%;pointer-events:none;filter:blur(48px);mix-blend-mode:screen;opacity:.55}
+.orb.o1{width:340px;height:340px;left:-80px;bottom:-140px;background:radial-gradient(circle,rgba(47,123,246,.55),transparent 70%);animation:orbA 14s ease-in-out infinite}
+.orb.o2{width:260px;height:260px;right:18%;top:-90px;background:radial-gradient(circle,rgba(217,178,98,.45),transparent 70%);animation:orbB 12s ease-in-out infinite}
+.orb.o3{width:200px;height:200px;right:-50px;bottom:-60px;background:radial-gradient(circle,rgba(106,161,255,.4),transparent 70%);animation:orbA 17s ease-in-out infinite reverse}
+
+/* card glow + 3D tilt (pointer-driven custom properties) */
+.glow{position:relative}
+.glow::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;opacity:0;transition:opacity .3s;background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),rgba(217,178,98,.2),transparent 65%)}
+.glow:hover::before{opacity:1}
+@media (hover:hover) and (pointer:fine){
+  .tilt{transform-style:preserve-3d;will-change:transform}
+  .tilt:hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-5px);box-shadow:var(--shadow-lg)}
+}
+
+/* magnetic buttons + shine sweep */
+.btn{translate:var(--tx,0) var(--ty,0)}
+.btn-primary,.btn-gold{background-image:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.28) 50%,transparent 65%);background-size:260% 100%;background-position:140% 0}
+.btn-primary:hover,.btn-gold:hover{animation:sweep .9s ease}
+.btn .ico,.btn .arrow{transition:transform .25s}
+.btn:hover .ico{transform:scale(1.12)}
+
+/* headings, partners, toasts */
+.section-h h2::after{content:"";display:block;height:3px;width:0;margin-top:7px;border-radius:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+.section-h.in h2::after{animation:underline .8s .35s cubic-bezier(.2,.8,.2,1) both}
+.partner{transition:transform .25s,color .25s}
+.partner:hover{transform:translateY(-3px);color:var(--text)}
+.partner:hover .pd{animation:pulseRing 1.2s infinite}
+.trustbar>*{transition:transform .25s}
+.trustbar>*:hover{transform:translateY(-3px)}
+.toast{animation:toastIn .55s cubic-bezier(.2,.9,.3,1.2) both}
+
+/* soft light that follows the cursor */
+.cursor-glow{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;pointer-events:none;z-index:1;opacity:0;transition:opacity .4s,transform .35s ease-out;background:radial-gradient(circle,rgba(47,123,246,.10),rgba(217,178,98,.06) 40%,transparent 70%)}
+.cursor-glow.on{opacity:1}
+
+/* back-to-top with progress ring */
+.to-top{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;border:0;padding:3px;cursor:pointer;z-index:150;background:conic-gradient(var(--gold) calc(var(--p,0)*1%),var(--line) 0);box-shadow:var(--shadow-lg);opacity:0;transform:translateY(20px) scale(.7);pointer-events:none;transition:opacity .3s,transform .35s cubic-bezier(.2,.9,.3,1.3)}
+.to-top.show{opacity:1;transform:none;pointer-events:auto}
+.to-top span{display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--surface);color:var(--text);font-size:19px;line-height:1}
+.to-top.show:hover span{animation:bob .9s ease infinite}
+
+@media (prefers-reduced-motion:reduce){.orb,.cursor-glow{display:none}.reveal.pop,.reveal.slide{scale:none;translate:none}}
+@media (max-width:560px){.orb.o1{width:220px;height:220px}.to-top{width:42px;height:42px;right:14px}}

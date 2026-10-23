@@ -1,0 +1,191 @@
+/* ===== Responsive layer: loads after global.css ===== */
+img,video,svg{max-width:100%}
+html{-webkit-tap-highlight-color:transparent}
+body{overflow-x:clip}
+.wrap{max-width:1600px}
+
+/* large desktop */
+@media (min-width:1400px){
+  .cat-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .mkt-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+}
+
+/* laptop / tablet landscape */
+@media (max-width:1100px){
+  .hero2{gap:28px}
+  .nav{gap:6px}
+  .navlinks a{padding:8px 9px;font-size:13.5px}
+}
+
+/* tablet */
+@media (max-width:980px){
+  .drawer{position:static}
+  .split{gap:18px}
+  .hero .inner{padding-block:40px 32px}
+  .mobile-menu.open{max-height:calc(100dvh - 64px);overflow-y:auto}
+}
+
+/* large phone / small tablet */
+@media (max-width:768px){
+  .nav{height:58px}
+  .brand b{font-size:16px}
+  .nav-logo{width:48px;height:28px}
+  .authbox .btn{padding:8px 12px;font-size:13px;min-height:38px}
+  .hero h1{max-width:none!important}
+  .hero .lede{max-width:none}
+  .trustbar{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .cat-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .mkt-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .kpi-row,.astat{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .rev-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .card{padding:16px}
+  .toolbar{margin:12px 0}
+  .toolbar .search{flex:1 1 100%}
+  .news-item .b{padding:16px}
+  .fund-item .ph{flex:1 1 100%;min-height:130px}
+  .carousel .mkt{width:220px}
+  footer{padding:30px 0 40px}
+  footer .fr{flex-direction:column;gap:20px}
+  .foot-sub{max-width:none}
+  input,select,textarea{font-size:16px} /* stops iOS zoom-on-focus */
+}
+
+/* phone */
+@media (max-width:560px){
+  .page-h{margin-top:4px}
+  .hero .inner{padding-block:30px 26px}
+  .hsearch{max-width:none}
+  .match{padding:14px;gap:12px}
+  .match .thumb{width:52px;height:52px}
+  .match-grid{grid-template-columns:1fr}
+  .gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .choice-cards{grid-template-columns:1fr 1fr}
+  .chat-form{flex-wrap:wrap}
+  .chat-form .btn{flex:1 1 100%}
+  .section-h{margin-bottom:12px}
+  .vmodal{padding:10px}
+  .toasts{width:94vw;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+  .atbl-wrap{-webkit-overflow-scrolling:touch}
+  .frail{flex-basis:240px}
+}
+
+/* small phone */
+@media (max-width:420px){
+  .brand-div{display:none}
+  .mkt-grid{grid-template-columns:1fr}
+  .kv{grid-template-columns:1fr;gap:2px 0}
+  .kpi-row,.astat{grid-template-columns:1fr 1fr}
+  .kpi{padding:12px;gap:9px}
+  .kpi .n{font-size:22px}
+  .authbox .btn-ghost{display:none}
+}
+
+/* touch devices: comfortable tap targets */
+@media (pointer:coarse){
+  .btn{min-height:44px}
+  .btn-sm{min-height:40px}
+  .navlinks a,.mobile-menu a{min-height:44px}
+  .icon-btn{min-width:44px;min-height:44px}
+}
+
+/* short landscape phones */
+@media (max-height:480px) and (orientation:landscape){
+  .hero .inner{padding-block:22px}
+  .mobile-menu.open{max-height:calc(100dvh - 58px)}
+}
+
+/* ===== Mobile pass 2 ===== */
+.mm-theme{display:flex;gap:10px;align-items:center;width:100%;padding:14px max(20px,env(safe-area-inset-left,0px));font:inherit;font-weight:500;color:var(--text-soft);background:none;border:0;border-top:1px solid var(--line-soft);cursor:pointer;text-align:left}
+.authbox .short{display:none}
+@media (min-width:981px){.mm-theme{display:none}}
+
+/* a header that always fits: brand + Join + theme + menu */
+@media (max-width:560px){
+  .authbox .long{display:none}
+  .authbox .short{display:inline}
+  .nav{gap:4px}
+  .brand{gap:8px;min-width:0}
+  .brand b{font-size:15px;white-space:nowrap}
+  .nav-logo{width:42px;height:26px}
+  .authbox{gap:4px}
+  .authbox .btn-sm{padding:7px 11px;min-height:36px}
+}
+@media (max-width:380px){
+  .brand b{font-size:13.5px}
+  .authbox .icon-btn{display:none}   /* theme toggle lives in the menu on tiny screens */
+}
+
+/* mobile menu: full-width, tidy, scrollable */
+@media (max-width:980px){
+  .mobile-menu.open{box-shadow:0 18px 40px rgba(7,24,49,.18)}
+  .mobile-menu a,.mm-theme{font-size:15.5px}
+}
+
+/* hero + sections on phones */
+@media (max-width:560px){
+  .hero h1{font-size:clamp(30px,9vw,40px)}
+  .hero .lede{font-size:15px}
+  .hsearch{border-radius:14px}
+  .hsearch select,.hsearch input{flex:1 1 100%;min-height:48px;border-right:none}
+  .hsearch input{border-bottom:1px solid #e6e0d3}
+  .hsearch button{flex:1 1 100%;justify-content:center;min-height:50px}
+  section{padding:26px 0}
+  .section-h h2{font-size:21px}
+  .kicker{font-size:11px}
+  .trustbar{grid-template-columns:1fr 1fr}
+  .trustbar>*{padding:12px}
+  .partners{gap:10px 16px;justify-content:center}
+  .rev-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .rev{padding:13px}
+  .feature-row{grid-template-columns:1fr}
+  .cat .ph{height:78px}
+  .cat .b{padding:10px 12px 13px}
+  .cat .t{font-size:15px}
+  .cat .subs{display:none}
+  .page-h{font-size:clamp(26px,8vw,32px)}
+  .news-item .ph{flex:1 1 100%;min-height:150px}
+  .news-item h3{font-size:17px}
+  .fund-item .b{padding:14px}
+  .btn-block-sm{width:100%}
+  .top{gap:8px}
+  .badge-ai{font-size:11px}
+  .tag{font-size:10.5px}
+  .quote{padding:16px}
+}
+
+/* tables + steppers get an edge fade so users see they scroll */
+.atbl-wrap,.stepper{background:
+  linear-gradient(90deg,var(--surface) 30%,transparent) left/28px 100% no-repeat local,
+  linear-gradient(270deg,var(--surface) 30%,transparent) right/28px 100% no-repeat local,
+  radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.18),transparent) left/10px 100% no-repeat scroll,
+  radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.18),transparent) right/10px 100% no-repeat scroll,var(--surface)}
+.stepper{background:none}
+@media (max-width:640px){
+  .atbl{font-size:12.5px;min-width:680px}
+  .atbl-wrap{margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)));border-radius:0;border-left:0;border-right:0}
+}
+
+/* forms: single column, big fields, sticky-friendly actions */
+@media (max-width:600px){
+  .form-grid{gap:12px}
+  .field input,.field select,.field textarea{min-height:46px}
+  .choice{padding:12px}
+  .stepper{margin-inline:-4px}
+  .drawer{padding:14px}
+  .lock-pill,.badge-ai{white-space:normal}
+  .kv{font-size:13px}
+}
+
+/* disable heavy hover/pointer effects on touch; keep it smooth */
+@media (hover:none){
+  .glow::before,.cursor-glow{display:none}
+  .tilt:hover,.mkt:hover,.cat:hover,.news-item:hover,.fund-item:hover{transform:none}
+  .orb{filter:blur(36px);opacity:.4}
+  .hero .inner{translate:none}
+}
+@media (max-width:560px){.orb.o2,.orb.o3{display:none}}
+
+/* iOS: keep the bottom bar clear of the home indicator */
+@supports (padding:max(0px)){
+  footer{padding-bottom:max(46px,calc(env(safe-area-inset-bottom,0px) + 24px))}
+}

@@ -1,0 +1,51 @@
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Layout: sticky chamber bar, navy photo hero, then sectioned content in a 1240px column; app views (matcher, admin) are tool-dense. */
+:root{
+  --navy:#0a1f3d; --navy-2:#071831;
+  --bg:#f4f1ea; --bg-2:#ece7db; --surface:#ffffff; --surface-2:#faf8f3;
+  --text:#12233f; --text-soft:#4a5a72; --text-faint:#5e6a7c;
+  --line:#e2ddd0; --line-soft:#eeeae0;
+  --blue:#1d5fd4; --blue-bright:#2f7bf6; --blue-text:#1d5fd4; --blue-soft:#e7effc;
+  --gold:#c39a3e; --gold-text:#8a6a1f; --gold-soft:#f4ecd8; --on-gold:#2e2206;
+  --green:#1f9d63; --green-text:#177a4c; --green-soft:#e4f5ec;
+  --red:#c2453c; --red-soft:#fbe9e7;
+  --btn:#0a1f3d; --btn-ink:#ffffff;
+  --toast:#0a1f3d; --toast-ink:#ffffff;
+  --shadow:0 1px 2px rgba(10,31,61,.06),0 8px 30px rgba(10,31,61,.08);
+  --shadow-lg:0 20px 60px rgba(10,31,61,.16);
+  --serif:Fraunces,Georgia,"Times New Roman",serif;
+  --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:16px; --r-sm:11px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#060f20; --bg-2:#081327; --surface:#0d1c34; --surface-2:#0a1830;
+  --text:#eaf0fa; --text-soft:#a9b8cf; --text-faint:#8a9bb5;
+  --line:#173056; --line-soft:#12294a;
+  --blue:#4f8bf7; --blue-bright:#6aa1ff; --blue-text:#6aa1ff; --blue-soft:#12294f;
+  --gold:#d9b262; --gold-text:#d9b262; --gold-soft:#2a2413; --on-gold:#2e2206;
+  --green:#39c17f; --green-text:#39c17f; --green-soft:#0f2a1d;
+  --red:#e06a61; --red-soft:#2d1514;
+  --btn:#2f6fe0; --btn-ink:#ffffff;
+  --toast:#0d1c34; --toast-ink:#eaf0fa;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 34px rgba(0,0,0,.4);
+  --shadow-lg:0 24px 70px rgba(0,0,0,.55);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#060f20; --bg-2:#081327; --surface:#0d1c34; --surface-2:#0a1830;
+  --text:#eaf0fa; --text-soft:#a9b8cf; --text-faint:#8a9bb5;
+  --line:#173056; --line-soft:#12294a;
+  --blue:#4f8bf7; --blue-bright:#6aa1ff; --blue-text:#6aa1ff; --blue-soft:#12294f;
+  --gold:#d9b262; --gold-text:#d9b262; --gold-soft:#2a2413; --on-gold:#2e2206;
+  --green:#39c17f; --green-text:#39c17f; --green-soft:#0f2a1d;
+  --red:#e06a61; --red-soft:#2d1514;
+  --btn:#2f6fe0; --btn-ink:#ffffff;
+  --toast:#0d1c34; --toast-ink:#eaf0fa;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 34px rgba(0,0,0,.4);
+  --shadow-lg:0 24px 70px rgba(0,0,0,.55);
+  color-scheme:dark;
+}
