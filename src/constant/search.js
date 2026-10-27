@@ -4,7 +4,8 @@ export const EXAMPLES={
   sell:["Spice exporter seeking Gulf & ASEAN distributors","Wheat exporter wanting rupee-settled Asian buyers","Furniture maker seeking Gulf hospitality contracts"],
   capital:["Logistics startup raising USD 6M Series A","Cold-chain firm seeking growth capital + JV","Solar developer needing blended finance"],
   invest:["Fund seeking agri-tech & supply-chain deals","Backing fintech founders across BRICS-ASEAN","PE into logistics & manufacturing in Asia"],
-  jv:["Payments firm wanting ASEAN rail partners","Freight network seeking India-Africa JV","EPC contractor seeking solar project partners"]
+  jv:["Payments firm wanting ASEAN rail partners","Freight network seeking India-Africa JV","EPC contractor seeking solar project partners"],
+  export:["Malaysian manufacturer seeking European distribution partners","Agricultural exporter targeting ASEAN retail chains","FMCG brand seeking Gulf and Africa market entry"]
 };
 
 export const POP_SEARCH=[

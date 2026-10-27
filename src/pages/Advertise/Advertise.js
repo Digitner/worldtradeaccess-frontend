@@ -4,14 +4,18 @@ import { carousel } from '../../components/Carousel/Carousel.js';
 import { mktCardHTML } from '../../components/MarketCard/MarketCard.js';
 import { toast } from '../../components/Toasts/toast.js';
 import { PILLARS } from '../../constant/pillars.js';
-import { SEED_MEMBERS } from '../../constant/seed.js';
 import { reqField } from '../../utils/forms.js';
 import { $, $$, esc, ico, img, imgTag, isEmail } from '../../utils/helpers.js';
 import { state } from '../../utils/state.js';
-import { record } from '../../utils/store.js';
+import useServices from './hooks/useServices.js';
 
-export function viewAdvertise(app){
+const _svc = useServices();
+let _sampleCard = null;
+
+export async function viewAdvertise(app){
   let fmt="Leaderboard banner";
+  // Fetch a real member for the sponsored listing preview
+  if (!_sampleCard) _sampleCard = await _svc.getSponsoredMember();
   app.innerHTML=`
   <section><div class="wrap">
     <div class="split" style="align-items:center">
@@ -31,7 +35,7 @@ export function viewAdvertise(app){
     <p class="muted" style="margin:0 0 14px">Live samples of each placement inside the product.</p>
     <div class="muted" style="font-weight:600;margin-bottom:8px">1 · Leaderboard banner: top of directory &amp; search</div>${adLeaderHTML(0)}
     <div class="muted" style="font-weight:600;margin:18px 0 8px">2 · Inline sponsored unit: within feeds</div>${adInlineHTML(1)}
-    <div class="split" style="margin-top:10px"><div class="main"><div class="muted" style="font-weight:600;margin:8px 0">3 · Sidebar unit: news &amp; funding</div>${adSideHTML(0)}</div><div class="side"><div class="muted" style="font-weight:600;margin:8px 0 16px">4 · Sponsored member listing</div>${mktCardHTML(SEED_MEMBERS.find(m=>m.id==="m08"))}</div></div>
+    <div class="split" style="margin-top:10px"><div class="main"><div class="muted" style="font-weight:600;margin:8px 0">3 · Sidebar unit: news &amp; funding</div>${adSideHTML(0)}</div><div class="side"><div class="muted" style="font-weight:600;margin:8px 0 16px">4 · Sponsored member listing</div>${_sampleCard ? mktCardHTML({..._sampleCard, spon:true}) : '<div class="loading-shimmer" style="height:120px;border-radius:10px"></div>'}</div></div>
     <h2 style="font-size:21px;margin:30px 0 4px">Placements &amp; indicative pricing</h2>
     <p class="muted" style="margin:0 0 6px">Illustrative demo rates. The final rate card is set with the chamber.</p>
     ${carousel([["Leaderboard banner","Top of Directory & Search","USD 1,200","/ month","mega"],["Inline sponsored unit","Within match & funding feeds","USD 800","/ month","news"],["Sidebar unit","News & Funding right rail","USD 500","/ month","grid"],["Sponsored member listing","Pinned atop relevant matches","USD 350","/ month","star"],["Newsletter placement","The Corridor Weekly, 12k+ inboxes","USD 600","/ issue","mail"],["Sector takeover","Own one pillar for a month","USD 2,500","/ month","trend"]].map(([t,d,p,per,i])=>`<div class="fmt" style="width:244px"><div style="display:flex;gap:8px;align-items:center;font-weight:600;font-size:15px"><span style="color:var(--blue-text);display:inline-flex">${ico(i)}</span>${t}</div><div class="muted" style="margin-top:4px">${d}</div><div class="price">${p}</div><div class="per">${per}</div></div>`).join(""),false,"Pricing")}
@@ -54,9 +58,10 @@ export function viewAdvertise(app){
   $("#adForm").onsubmit=async e=>{
     e.preventDefault();
     if(![reqField("adv_co"),reqField("adv_email",isEmail)].every(Boolean)){toast("Check the form","Company and a valid email are required.",false);return;}
-    await record("ad",{format:fmt,company:$("#adv_co").value.trim(),email:$("#adv_email").value.trim(),budget:$("#adv_budget").value.trim(),sector:$("#adv_sector").value||"Any",message:$("#adv_msg").value.trim()});
-    toast("Placement requested","The ad team will be in touch with the rate card.");
-    $("#adv_msg").value="";$("#adv_budget").value="";
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;btn.textContent="Sending…";
+    const ok=await _svc.submitAdRequest({format:fmt,company:$("#adv_co").value.trim(),email:$("#adv_email").value.trim(),budget:$("#adv_budget").value.trim(),sector:$("#adv_sector").value||"Any",message:$("#adv_msg").value.trim()});
+    if(ok){$("#adv_msg").value="";$("#adv_budget").value="";}
+    btn.disabled=false;btn.innerHTML=`${ico("send")} Request this placement`;
   };
 }
 

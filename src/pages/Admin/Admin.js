@@ -1,62 +1,66 @@
-/* eslint-disable */
+﻿﻿/* eslint-disable */
 import { toast } from '../../components/Toasts/toast.js';
 import { FORM_KINDS } from '../../constant/forms.js';
 import { $, $$, esc, fmtDate, ico } from '../../utils/helpers.js';
 import { curBase, route } from '../../utils/router.js';
 import { STORE, state } from '../../utils/state.js';
-import { forms, record, shared } from '../../utils/store.js';
+import LocalStorage from '../../config/LocalStorage.js';
+import useServices from './hooks/useServices.js';
+
+const _svc = useServices();
 
 export async function loadAdmin(){
-  if(!shared()||!STORE.canAdmin||state.ADMIN.loading)return;
+  if(!LocalStorage.isAdmin()||state.ADMIN.loading)return;
   state.ADMIN.loading=true;
+  state.ADMIN.err="";
   try{
-    const subs=await STORE.db.collection("subs").get();
-    const all=[];
-    await Promise.all(subs.docs.map(async d=>{
-      try{const fs=await STORE.db.collection(`subs/${d.id}/forms`).orderBy("at","desc").limit(500).get();fs.docs.forEach(x=>all.push({id:x.id,uid:d.id,...x.data()}));}catch(e){}
-    }));
-    all.sort((a,b)=>(b.at||0)-(a.at||0));
-    state.ADMIN.rows=all;state.ADMIN.loaded=true;state.ADMIN.err="";
-    const real=[...new Set(all.map(r=>r.uid).filter(u=>!String(u).startsWith("sample-")))];
-    if(real.length&&STORE.user){try{const ps=await STORE.user.profiles(real);real.forEach(u=>{state.ADMIN.names[u]=(ps[u]&&ps[u].name)||"";});}catch(e){}}
-  }catch(e){state.ADMIN.err="The shared record couldn't be read. Try Refresh in a moment.";}
+    const rows=await _svc.getSubmissions({kind:state.ADMIN.tab==="all"?null:state.ADMIN.tab});
+    rows.sort((a,b)=>(b.at||0)-(a.at||0));
+    state.ADMIN.rows=rows;state.ADMIN.loaded=true;
+  }catch(e){state.ADMIN.err="Could not load submissions. Try Refresh in a moment.";}
   state.ADMIN.loading=false;
   if(curBase()==="admin")paintAdmin();
 }
 
 export function adminRows(){
-  if(shared()&&STORE.canAdmin)return state.ADMIN.rows;
-  return state.LOCAL_FORMS.map(r=>({...r,uid:"this-device"}));
+  return state.ADMIN.rows||[];
 }
 
 export function summarize(r){const d=r.data||{};const pick={register:["company","country","goal","seeking"],login:["email","company"],edit:["company","goal","seeking"],search:["goal","intent","engine"],intro:["toName","message"],funding:["company","type","amount"],deal:["company","stageName","amount"],ad:["format","company","budget"],alerts:["email","topics"],newsletter:["email"],contact:["subject","message"]}[r.kind]||Object.keys(d).slice(0,3);return pick.map(k=>d[k]).filter(Boolean).map(v=>String(v)).join(" · ").slice(0,160);}
 
 export function viewAdmin(app){
-  if(!STORE.checked){app.innerHTML=`<section><div class="wrap narrow"><div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Checking your access…</b></div></div></div></section>`;return;}
-  if(shared()&&!STORE.canAdmin){
-    app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Chamber admins only.</h1><div class="card" style="display:flex;gap:14px;align-items:flex-start"><span style="font-size:22px;color:var(--gold-text);display:inline-flex">${ico("lock")}</span><div><b>Submissions are visible to chamber staff with edit access to this page.</b><p class="muted" style="margin:6px 0 0">If you manage this platform, ask the page owner to share it with you with edit access, then reload.</p></div></div></div></section>`;return;
+  if(!LocalStorage.isLoggedIn()){
+    app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Sign in required.</h1><div class="card"><p class="muted">You need to be signed in as an admin to access this page.</p><button class="btn btn-primary" onclick="go('#/login')">Log in</button></div></div></section>`;return;
   }
-  if(!shared()&&!state.ADMIN.pw){
-    app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Chamber admin.</h1><p class="page-sub">The shared record isn't available in this view, so the console shows submissions made on this device only.</p><form class="card" style="margin-top:20px" id="admForm" novalidate><div class="field"><label for="adm_pass">${ico("lock")}Admin password <span class="req">*</span></label><input id="adm_pass" type="password" placeholder="••••••"><div class="err-msg" id="adm_err">That password isn't right. The demo password is “admin”.</div><div class="hint">Demo password: <b>admin</b></div></div><button class="btn btn-primary btn-block" type="submit" style="margin-top:16px">${ico("shield")} Enter console</button></form></div></section>`;
-    $("#admForm").onsubmit=e=>{e.preventDefault();if($("#adm_pass").value.trim()!=="admin"){$("#adm_pass").classList.add("err");$("#adm_err").classList.add("show");return;}state.ADMIN.pw=true;route();};
-    return;
+  if(!LocalStorage.isAdmin()){
+    app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Chamber admins only.</h1><div class="card" style="display:flex;gap:14px;align-items:flex-start"><span style="font-size:22px;color:var(--gold-text);display:inline-flex">${ico("lock")}</span><div><b>This area is restricted to chamber staff.</b><p class="muted" style="margin:6px 0 0">Contact the chamber if you believe you should have access.</p></div></div></div></section>`;return;
   }
   app.innerHTML=`
   <section><div class="wrap">
     <div class="top">
-      <div><span class="kicker">Admin console</span><h1 class="page-h" style="margin-bottom:2px">Form submissions.</h1><p class="muted">Every form on the site, from every visitor, newest first. Select a row to see all fields.</p></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="state.ADMIN.loaded=false;loadAdmin();paintAdmin()">${ico("refresh")} Refresh</button>${STORE.downloads?`<button class="btn btn-sm btn-primary" onclick="exportCSV()">${ico("download")} Export CSV</button>`:""}</div>
+      <div><span class="kicker">Admin console</span><h1 class="page-h" style="margin-bottom:2px">Admin console.</h1><p class="muted">Manage submissions, members and news content.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="state.ADMIN.loaded=false;loadAdmin();paintAdmin()">${ico("refresh")} Refresh</button><button class="btn btn-sm btn-primary" onclick="exportCSV()">${ico("download")} Export CSV</button></div>
     </div>
-    <div class="admin-banner">${shared()?`<span class="live-dot"></span><span><b style="color:var(--text)">Live shared record.</b> New submissions appear automatically. Rows marked Sample are demonstration data.</span>`:`<span style="color:var(--gold-text);display:inline-flex">${ico("lock")}</span><span>Showing submissions made on this device only.</span>`}</div>
+    <div class="toolbar" style="margin-bottom:0">
+      <button class="fbtn" aria-pressed="${state.ADMIN.section==='submissions'||!state.ADMIN.section}" onclick="admSection('submissions')">${ico("inbox")} Submissions</button>
+      <button class="fbtn" aria-pressed="${state.ADMIN.section==='news'}" onclick="admSection('news')">${ico("news")} News</button>
+    </div>
     <div id="adm_body"></div>
   </div></section>`;
-  if(shared()&&!state.ADMIN.loaded)loadAdmin();
+  if(!state.ADMIN.loaded)loadAdmin();
   paintAdmin();
 }
 
+export function admSection(s){
+  state.ADMIN.section = s;
+  if(s==='news') paintNewsAdmin();
+  else paintAdmin();
+}
+
 export function paintAdmin(){
+  if(state.ADMIN.section==='news'){paintNewsAdmin();return;}
   const body=$("#adm_body");if(!body)return;
-  if(shared()&&!state.ADMIN.loaded){body.innerHTML=`<div class="thinking" style="margin-top:16px" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading submissions…</b>${state.ADMIN.err?`<div class="muted">${esc(state.ADMIN.err)}</div>`:""}</div></div>`;return;}
+  if(!state.ADMIN.loaded&&state.ADMIN.loading){body.innerHTML=`<div class="thinking" style="margin-top:16px" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading submissions…</b>${state.ADMIN.err?`<div class="muted">${esc(state.ADMIN.err)}</div>`:""}</div></div>`;return;}
   const rows=adminRows();
   const counts={};rows.forEach(r=>counts[r.kind]=(counts[r.kind]||0)+1);
   const people=new Set(rows.map(r=>(r.who&&r.who.email)||r.uid)).size;
@@ -79,7 +83,7 @@ export function paintAdmin(){
     <div class="toolbar" style="margin-top:0">${[["all","All",rows.length,"inbox"],...kinds.map(k=>[k,FORM_KINDS[k].label,counts[k]||0,FORM_KINDS[k].ic])].map(([k,l,n,i])=>`<button class="fbtn" aria-pressed="${state.ADMIN.tab===k}" onclick="admTab('${k}')">${ico(i)}${l}<span class="n">${n}</span></button>`).join("")}</div>
     <div class="split">
       <div class="main">
-        <div class="atbl-wrap">${list.length?`<table class="atbl"><thead><tr><th>When</th><th>Form</th><th>From</th><th>Details</th><th>Account</th></tr></thead><tbody>${list.slice(0,400).map(r=>{const k=FORM_KINDS[r.kind]||{label:r.kind,ic:"file"};const sample=String(r.uid).startsWith("sample-");const acct=sample?'<span class="tag plain">Sample</span>':r.uid==="this-device"?'<span class="tag plain">This device</span>':esc(state.ADMIN.names[r.uid]||"Signed-in viewer");return `<tr tabindex="0" aria-selected="${sel===r}" data-id="${esc(r.id)}" data-u="${esc(r.uid)}"><td class="when">${esc(fmtDate(r.at))}</td><td><span class="tag" style="white-space:nowrap">${ico(k.ic)}${esc(k.label)}</span></td><td><b>${esc((r.who&&r.who.name)||"—")}</b><div class="muted">${esc([(r.who&&r.who.company),(r.who&&r.who.email)].filter(Boolean).join(" · "))}</div></td><td class="sum">${esc(summarize(r))}</td><td>${acct}</td></tr>`;}).join("")}</tbody></table>`:`<div class="empty-c">${ico("inbox")} ${rows.length?"No submissions match this filter.":"No submissions yet. They appear here as visitors register, search, request introductions or send forms."}</div>`}</div>
+        <div class="atbl-wrap">${list.length?`<table class="atbl"><thead><tr><th>When</th><th>Form</th><th>From</th><th>Details</th><th>Account</th></tr></thead><tbody>${list.slice(0,400).map(r=>{const k=FORM_KINDS[r.kind]||{label:r.kind,ic:"file"};const sample=String(r.uid).startsWith("sample-");const acct=sample?'<span class="tag plain">Sample</span>':r.uid==="this-device"?'<span class="tag plain">This device</span>':esc(state.ADMIN.names[r.uid]||"Signed-in viewer");return `<tr tabindex="0" aria-selected="${sel===r}" data-id="${esc(r.id)}" data-u="${esc(r.uid)}"><td class="when">${esc(fmtDate(r.at))}</td><td><span class="tag" style="white-space:nowrap">${ico(k.ic)}${esc(k.label)}</span></td><td><b>${esc((r.who&&r.who.name)||"--")}</b><div class="muted">${esc([(r.who&&r.who.company),(r.who&&r.who.email)].filter(Boolean).join(" · "))}</div></td><td class="sum">${esc(summarize(r))}</td><td>${acct}</td></tr>`;}).join("")}</tbody></table>`:`<div class="empty-c">${ico("inbox")} ${rows.length?"No submissions match this filter.":"No submissions yet. They appear here as visitors register, search, request introductions or send forms."}</div>`}</div>
       </div>
       <div class="side">${sel?adminDetail(sel):`<div class="drawer"><div class="muted" style="display:flex;gap:8px;align-items:center">${ico("eye")} Select a submission to see every field.</div></div>`}</div>
     </div>`;
@@ -104,13 +108,146 @@ export function adminDetail(r){
 export function admTab(k){state.ADMIN.tab=k;state.ADMIN.sel=null;paintAdmin();}
 
 export async function exportCSV(){
-  const rows=adminRows();const keys=new Set();rows.forEach(r=>Object.keys(r.data||{}).forEach(k=>keys.add(k)));
-  const cols=["submitted_at","form","name","company","email","account",...keys];
-  const cell=v=>{const s=v==null?"":String(typeof v==="object"?JSON.stringify(v):v);return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;};
-  const lines=[cols.join(",")].concat(rows.map(r=>[new Date(r.at).toISOString(),(FORM_KINDS[r.kind]||{}).label||r.kind,r.who&&r.who.name,r.who&&r.who.company,r.who&&r.who.email,String(r.uid).startsWith("sample-")?"Sample":(state.ADMIN.names[r.uid]||r.uid),...[...keys].map(k=>(r.data||{})[k])].map(cell).join(",")));
-  try{const blob=new Blob([lines.join("\n")],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`worldtradeaccess-submissions-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-  catch(e){toast("Export didn't start","The download couldn't be created.",false);}
+  await _svc.exportSubmissionsCSV();
 }
 
 
+/* ── News management ─────────────────────────────────────────────────── */
+
+const NEWS_CATS = ["Policy Brief","Investor Update","Trade Alert","Market Report","Opportunity","General"];
+
+let _newsArticles = [];
+let _newsEditing = null; // null=list, "new"=new form, article._id=edit form
+
+export async function paintNewsAdmin() {
+  const body = $("#adm_body"); if (!body) return;
+  body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading articles…</b></div></div>`;
+  _newsArticles = await _svc.getNews();
+  _newsEditing = null;
+  renderNewsSection();
+}
+
+function renderNewsSection() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_newsEditing !== null) { renderNewsForm(); return; }
+  const list = _newsArticles;
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <div><b>${list.length}</b> article${list.length===1?"":"s"}</div>
+      <button class="btn btn-sm btn-primary" onclick="newsNew()">${ico("rocket")} New article</button>
+    </div>
+    ${list.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th></th></tr></thead><tbody>
+      ${list.map(a => `<tr>
+        <td><b>${esc(a.title)}</b><div class="muted" style="font-size:12px">${esc(a.excerpt||"").slice(0,80)}</div></td>
+        <td><span class="tag">${esc(a.category||"")}</span></td>
+        <td class="muted" style="white-space:nowrap">${esc(fmtDate(a.published_at||a.createdAt))}</td>
+        <td style="white-space:nowrap;display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="newsEdit('${esc(a._id)}')">${ico("edit")} Edit</button>
+          <button class="btn btn-sm" style="color:var(--red,#e55)" onclick="newsDel('${esc(a._id)}')">${ico("trash")} Delete</button>
+        </td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("news")} No articles yet. Click "New article" to publish the first one.</div>`}`;
+}
+
+function renderNewsForm() {
+  const body = $("#adm_body"); if (!body) return;
+  const a = _newsEditing === "new" ? {} : (_newsArticles.find(x => x._id === _newsEditing) || {});
+  const isNew = _newsEditing === "new";
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <button class="btn btn-sm" onclick="newsCancel()">${ico("arrow")} Back to list</button>
+      <h2 style="font-size:18px;margin:0">${isNew ? "New article" : "Edit article"}</h2>
+    </div>
+    <form class="card" id="newsForm" novalidate style="margin-top:16px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-grid">
+        <div class="field full"><label for="nf_title">${ico("file")} Title <span class="req">*</span></label><input id="nf_title" value="${esc(a.title||"")}" placeholder="Article headline"></div>
+        <div class="field"><label for="nf_cat">${ico("grid")} Category <span class="req">*</span></label><select id="nf_cat">${NEWS_CATS.map(c=>`<option ${(a.category||""===c)?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+        <div class="field">
+          <label>${ico("image")} Article image <span class="muted" style="font-weight:400">(optional)</span></label>
+          ${a.image_url ? `<div id="nf_img_prev" style="margin-bottom:8px"><img src="${esc(a.image_url)}" style="max-width:100%;max-height:140px;border-radius:8px;object-fit:cover"><br><button type="button" class="btn btn-sm" style="margin-top:6px;color:var(--red,#e55)" onclick="newsImgClear()">× Remove image</button></div>` : `<div id="nf_img_prev" style="display:none"></div>`}
+          <label for="nf_img_file" id="nf_img_drop" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--line);border-radius:10px;padding:16px 12px;cursor:pointer;text-align:center;${a.image_url?"display:none":""}">
+            <span style="color:var(--blue-text);font-size:22px;display:inline-flex">${ico("image")}</span>
+            <span style="font-size:13px;color:var(--text-soft)">Click to upload image</span>
+            <span style="font-size:11px;color:var(--text-muted)">JPG, PNG or WebP</span>
+          </label>
+          <input type="file" id="nf_img_file" accept="image/*" style="display:none">
+          <div id="nf_img_status" style="font-size:12px;color:var(--text-soft);margin-top:4px"></div>
+        </div>
+      </div>
+      <div class="field full"><label for="nf_excerpt">${ico("file")} Excerpt / summary</label><textarea id="nf_excerpt" rows="2" maxlength="400" placeholder="1–2 sentence summary shown in the list…">${esc(a.excerpt||"")}</textarea></div>
+      <div class="field full"><label for="nf_body">${ico("news")} Full article body</label><textarea id="nf_body" rows="10" placeholder="Full article text…">${esc(a.body||a.content||"")}</textarea></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="nf_save" type="submit">${ico("rocket")} ${isNew?"Publish article":"Save changes"}</button>
+        <button class="btn" type="button" onclick="newsCancel()">Cancel</button>
+      </div>
+    </form>`;
+
+  let _newsImgUrl = a.image_url || null;
+  let _newsImgUploading = false;
+
+  window.newsImgClear = () => {
+    _newsImgUrl = null;
+    const prev = $("#nf_img_prev"); if (prev) { prev.style.display = "none"; prev.innerHTML = ""; }
+    const drop = $("#nf_img_drop"); if (drop) drop.style.display = "flex";
+  };
+
+  const imgFile = $("#nf_img_file");
+  const imgDrop = $("#nf_img_drop");
+  if (imgDrop) imgDrop.onclick = () => imgFile && imgFile.click();
+  if (imgFile) imgFile.onchange = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const status = $("#nf_img_status");
+    const btn = $("#nf_save");
+    if (status) status.textContent = "Uploading…";
+    if (btn) { btn.disabled = true; }
+    _newsImgUploading = true;
+    const url = await _svc.uploadImage(file);
+    _newsImgUploading = false;
+    if (btn) btn.disabled = false;
+    if (url) {
+      _newsImgUrl = url;
+      const prev = $("#nf_img_prev");
+      if (prev) { prev.style.display = ""; prev.innerHTML = `<img src="${esc(url)}" style="max-width:100%;max-height:140px;border-radius:8px;object-fit:cover"><br><button type="button" class="btn btn-sm" style="margin-top:6px;color:var(--red,#e55)" onclick="newsImgClear()">× Remove image</button>`; }
+      if (imgDrop) imgDrop.style.display = "none";
+      if (status) status.textContent = "";
+    } else {
+      if (status) status.textContent = "Upload failed. Try again.";
+      e.target.value = "";
+    }
+  };
+
+  $("#newsForm").onsubmit = async (e) => {
+    e.preventDefault();
+    if (_newsImgUploading) { toast("Please wait", "Image is still uploading…", false); return; }
+    const title = $("#nf_title").value.trim();
+    const category = $("#nf_cat").value;
+    if (!title || !category) { toast("Required", "Title and category are required.", false); return; }
+    const btn = $("#nf_save"); btn.disabled = true; btn.textContent = "Saving…";
+    const payload = {
+      title, category,
+      excerpt: $("#nf_excerpt").value.trim(),
+      body: $("#nf_body").value.trim(),
+      image_url: _newsImgUrl || null,
+      status: "published",
+      published_at: Date.now(),
+    };
+    let ok;
+    if (isNew) ok = await _svc.createNews(payload);
+    else ok = await _svc.updateNews(a._id, payload);
+    if (ok) { _newsArticles = await _svc.getNews(); _newsEditing = null; renderNewsSection(); }
+    else { btn.disabled = false; btn.innerHTML = `${ico("rocket")} ${isNew?"Publish article":"Save changes"}`; }
+  };
+}
+
+export function newsNew() { _newsEditing = "new"; renderNewsForm(); }
+export function newsEdit(id) { _newsEditing = id; renderNewsForm(); }
+export function newsCancel() { _newsEditing = null; renderNewsSection(); }
+export async function newsDel(id) {
+  if (!confirm("Delete this article? This cannot be undone.")) return;
+  const ok = await _svc.deleteNews(id);
+  if (ok) { _newsArticles = _newsArticles.filter(a => a._id !== id); renderNewsSection(); }
+}
+
 /* inline handlers in the markup call these by name */
+

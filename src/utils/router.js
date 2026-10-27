@@ -30,7 +30,7 @@ export function softRefresh(bases){
 
 /* ================= theme ================= */
 
-export function route(soft){
+export async function route(soft){
   closeMenu();
   state.CAROUSEL_TIMERS.forEach(clearInterval);state.CAROUSEL_TIMERS=[];
   const h=location.hash||"#/";
@@ -38,10 +38,10 @@ export function route(soft){
   const app=$("#app");
   renderChrome();
   const views={"":viewHome,register:viewRegister,login:viewLogin,search:viewSearch,directory:viewDirectory,funding:viewFunding,news:viewNews,advertise:viewAdvertise,admin:viewAdmin,contact:viewContact};
-  if(base==="dashboard")state.USER?viewDashboard(app):viewLogin(app,"Log in to view your dashboard.");
-  else if(base==="edit")state.USER?viewEditListing(app):viewLogin(app);
-  else if(base==="member")viewMember(app,arg);
-  else if(base==="deal")viewDeal(app,arg);
-  else (views[base||""]||viewHome)(app,undefined,soft);
+  if(base==="dashboard")state.USER?await viewDashboard(app):await viewLogin(app,"Log in to view your dashboard.");
+  else if(base==="edit")state.USER?await viewEditListing(app):await viewLogin(app);
+  else if(base==="member")await viewMember(app,arg);
+  else if(base==="deal")await viewDeal(app,arg);
+  else await (views[base||""]||viewHome)(app,undefined,soft);
   requestAnimationFrame(mountCarousels);
 }

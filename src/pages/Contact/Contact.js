@@ -3,7 +3,9 @@ import { toast } from '../../components/Toasts/toast.js';
 import { reqField } from '../../utils/forms.js';
 import { $, esc, ico, img, imgTag, isEmail } from '../../utils/helpers.js';
 import { state } from '../../utils/state.js';
-import { record } from '../../utils/store.js';
+import useServices from './hooks/useServices.js';
+
+const _svc = useServices();
 
 export function viewContact(app){
   app.innerHTML=`
@@ -35,7 +37,9 @@ export function viewContact(app){
   $("#contactForm").onsubmit=async e=>{
     e.preventDefault();
     if(![reqField("c_name"),reqField("c_email",isEmail),reqField("c_msg")].every(Boolean))return;
-    await record("contact",{name:$("#c_name").value.trim(),email:$("#c_email").value.trim(),subject:$("#c_subj").value.trim(),message:$("#c_msg").value.trim()});
-    toast("Message sent","The team will be in touch.");$("#c_subj").value="";$("#c_msg").value="";
+    const btn=e.target.querySelector("[type=submit]");btn.disabled=true;btn.textContent="Sending…";
+    const ok=await _svc.sendMessage({name:$("#c_name").value.trim(),email:$("#c_email").value.trim(),subject:$("#c_subj").value.trim(),message:$("#c_msg").value.trim()});
+    if(ok){$("#c_subj").value="";$("#c_msg").value="";}
+    btn.disabled=false;btn.innerHTML=`${ico("send")} Send message`;
   };
 }

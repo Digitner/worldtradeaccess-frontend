@@ -1,5 +1,4 @@
-/* eslint-disable */
-import { adInlineHTML, adLeaderHTML } from '../../components/Ads/Ads.js';
+﻿/* eslint-disable */
 import { carousel } from '../../components/Carousel/Carousel.js';
 import { ccChip, pIco } from '../../components/Chips/Chips.js';
 import { fundRailHTML } from '../../components/FundingCard/FundingCard.js';
@@ -10,16 +9,28 @@ import { TYPE_LABEL } from '../../constant/roles.js';
 import { $, $$, esc, ico, img, imgTag, photo } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
-import { allFunding, allMembers } from '../../utils/store.js';
+import useServices from './hooks/useServices.js';
+
+const _svc = useServices();
+let _topMembers = [];
 
 export function heroSearch(e){if(e)e.preventDefault();let q=$("#heroQ").value.trim();if(!q){toast("Type what you're looking for","For example: halal snacks distributor in Malaysia",false);$("#heroQ").focus();return;}const cat=$("#heroCat").value;if(cat&&cat!=="All categories")q=cat+": "+q;state.HERO.q=q;state.HERO.role="buy";go("#/search");}
 
 export function heroChip(t){$("#heroQ").value=t;heroSearch();}
 
-export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=allMembers().filter(m=>m.pillar===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country)} ${esc(m.country)} · ${TYPE_LABEL[m.type]}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
+export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=_topMembers.filter(m=>(m.sector||m.pillar)===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m._id||m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.company_name||m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country)} ${esc(m.country)} · ${TYPE_LABEL[m.goal||m.type]||""}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
 
-export function viewHome(app){
-  const feat=[...allMembers()].sort((a,b)=>(b.spon?1:0)-(a.spon?1:0)).slice(0,10);
+export async function viewHome(app){
+  // Load API data in parallel
+  const [feat, topMembers, funding] = await Promise.all([
+    _svc.getFeaturedMembers(),
+    _svc.getTopMembers(),
+    _svc.getFundingHighlights(),
+  ]);
+  _topMembers = topMembers;
+  // Normalize field names for card components
+  const featNorm = feat.map(m => ({ ...m, id: m._id || m.id, name: m.company_name || m.name, type: m.goal || m.type, pillar: m.sector || m.pillar }));
+  const fundNorm = funding.map(f => ({ ...f, id: f._id || f.id, img: f.image_url || f.img, company: f.company_name || f.company, country: f.country || "", desc: f.description || f.desc || "" }));
   app.innerHTML=`
   <div class="hero" style="${img("kl")?`background-image:url('${esc(img("kl"))}')`:""}">
     <div class="wrap inner">
@@ -58,11 +69,9 @@ export function viewHome(app){
     <div class="cat-grid">${PILLARS.map(p=>`<button class="cat" onclick="state.DIR.pillar='${p}';go('#/directory')"><span class="ph" style="${img(PILLAR_IMG[p])?`background-image:url('${esc(img(PILLAR_IMG[p]))}')`:""}"><span class="ic">${pIco(p)}</span></span><span class="b"><span class="t" style="display:block">${p}</span><span class="subs" style="display:block">${PILLAR_SUBS[p]}</span></span></button>`).join("")}</div>
   </div></section>
 
-  <section style="padding-top:4px"><div class="wrap">${adLeaderHTML(1)}</div></section>
-
   <section style="padding-top:14px"><div class="wrap">
     <div class="section-h"><h2>Featured members &amp; opportunities</h2><button class="linkish" onclick="go('#/directory')">See all →</button></div>
-    ${carousel(feat.map(mktCardHTML).join(""),true,"Featured members")}
+    ${carousel(featNorm.map(mktCardHTML).join(""),true,"Featured members")}
   </div></section>
 
   <section><div class="wrap"><div class="split">
@@ -75,8 +84,7 @@ export function viewHome(app){
     </div>
     <div class="side">
       <div class="section-h"><h2>Raising capital now</h2><button class="linkish" onclick="go('#/funding')">View all →</button></div>
-      ${carousel(allFunding().map(fundRailHTML).join(""),true,"Funding opportunities")}
-      <div style="margin-top:12px">${adInlineHTML(0)}</div>
+      ${carousel(fundNorm.map(fundRailHTML).join(""),true,"Funding opportunities")}
     </div>
   </div></div></section>
 
@@ -91,7 +99,7 @@ export function viewHome(app){
       ${[["A supermarket group in KL found three qualified halal suppliers in a week. Intent matching did what months of trade-fair cards never could.","FA","Farah Aziz","KL Prime Grocers, Malaysia"],
          ["We listed a USD 6M raise and were introduced to two corridor funds within days. The reasoning attached to each match saved us hours of screening.","DP","Dewi Pratama","Garuda Logistics Tech, Indonesia"],
          ["As a fund, inbound quality is the whole game. WorldTradeAccess sends us deals that fit our thesis and geography.","OR","Omar Rashid","Gulf Bridge Capital, UAE"]]
-        .map(([q,ini,n,r])=>`<figure class="quote"><blockquote>“${q}”</blockquote><figcaption class="who"><span class="av">${ini}</span><span><b style="font-size:14px;display:block">${n}</b><span class="muted">${r}</span></span></figcaption></figure>`).join("")}
+        .map(([q,ini,n,r])=>`<figure class="quote"><blockquote>"${q}"</blockquote><figcaption class="who"><span class="av">${ini}</span><span><b style="font-size:14px;display:block">${n}</b><span class="muted">${r}</span></span></figcaption></figure>`).join("")}
     </div>
   </div></section>
 
@@ -119,3 +127,4 @@ export function viewHome(app){
 }
 
 /* ================= REGISTER ================= */
+
