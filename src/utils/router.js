@@ -1,20 +1,8 @@
+import { viewHome, viewRegister, viewLogin, viewSearch, viewDirectory, viewFunding, viewNews, viewAdvertise, viewContact, viewDashboard, viewEditListing, viewMember, viewDeal } from '../routes/publicRoutes.js';
+import { viewAdminLogin, viewAdminDashboard, viewAdminSubmissions, viewAdminUsers, viewAdminSettings, isAdminPreview } from '../routes/privateRoutes.js';
 /* eslint-disable */
 import { mountCarousels } from '../components/Carousel/Carousel.js';
 import { closeMenu, renderChrome } from '../components/Navbar/navbar.js';
-import { viewAdmin } from '../pages/Admin/Admin.js';
-import { viewAdvertise } from '../pages/Advertise/Advertise.js';
-import { viewContact } from '../pages/Contact/Contact.js';
-import { viewDashboard } from '../pages/Dashboard/Dashboard.js';
-import { viewDeal } from '../pages/Deal/Deal.js';
-import { viewDirectory } from '../pages/Directory/Directory.js';
-import { viewEditListing } from '../pages/EditListing/EditListing.js';
-import { viewFunding } from '../pages/Funding/Funding.js';
-import { viewHome } from '../pages/Home/Home.js';
-import { viewLogin } from '../pages/Login/Login.js';
-import { viewMember } from '../pages/Member/Member.js';
-import { viewNews } from '../pages/News/News.js';
-import { viewRegister } from '../pages/Register/Register.js';
-import { viewSearch } from '../pages/Search/Search.js';
 import { $ } from './helpers.js';
 import { state } from './state.js';
 
@@ -30,18 +18,32 @@ export function softRefresh(bases){
 
 /* ================= theme ================= */
 
-export async function route(soft){
+export function route(soft){
   closeMenu();
   state.CAROUSEL_TIMERS.forEach(clearInterval);state.CAROUSEL_TIMERS=[];
   const h=location.hash||"#/";
   const [base,arg]=h.slice(2).split("/");
   const app=$("#app");
+  document.body.classList.toggle("wta-admin-mode", base === "admin" && arg !== "login");
   renderChrome();
-  const views={"":viewHome,register:viewRegister,login:viewLogin,search:viewSearch,directory:viewDirectory,funding:viewFunding,news:viewNews,advertise:viewAdvertise,admin:viewAdmin,contact:viewContact};
-  if(base==="dashboard")state.USER?await viewDashboard(app):await viewLogin(app,"Log in to view your dashboard.");
-  else if(base==="edit")state.USER?await viewEditListing(app):await viewLogin(app);
-  else if(base==="member")await viewMember(app,arg);
-  else if(base==="deal")await viewDeal(app,arg);
-  else await (views[base||""]||viewHome)(app,undefined,soft);
+  // Separate admin routes; demo session only, not a security boundary.
+  if (base === 'admin') {
+    if (arg === 'login') viewAdminLogin(app);
+    else if (arg === 'submissions' || arg === 'users' || arg === 'settings') {
+      if (!isAdminPreview()) { location.replace('#/admin/login'); viewAdminLogin(app, 'Start an admin preview to view this page.'); }
+      else ({submissions:viewAdminSubmissions,users:viewAdminUsers,settings:viewAdminSettings})[arg](app);
+    }
+    else if (arg === 'dashboard' || !arg) {
+      if (isAdminPreview()) viewAdminDashboard(app);
+      else { location.replace('#/admin/login'); viewAdminLogin(app, 'Start an admin preview to view the dashboard.'); }
+    } else viewAdminLogin(app);
+    return;
+  }
+  const views={"":viewHome,register:viewRegister,login:viewLogin,search:viewSearch,directory:viewDirectory,funding:viewFunding,news:viewNews,advertise:viewAdvertise,contact:viewContact};
+  if(base==="dashboard")state.USER?viewDashboard(app):viewLogin(app,"Log in to view your dashboard.");
+  else if(base==="edit")state.USER?viewEditListing(app):viewLogin(app);
+  else if(base==="member")viewMember(app,arg);
+  else if(base==="deal")viewDeal(app,arg);
+  else (views[base||""]||viewHome)(app,undefined,soft);
   requestAnimationFrame(mountCarousels);
 }

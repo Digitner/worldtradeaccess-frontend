@@ -1,3 +1,9 @@
+---
+noteId: "00e74820d22b11f1bcc49784ab29c2dc"
+tags: []
+
+---
+
 # WorldTradeAccess Frontend
 
 React + Vite frontend for WorldTradeAccess, the BRICS-ASEAN Chamber of Commerce trade platform.

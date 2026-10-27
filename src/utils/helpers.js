@@ -25,7 +25,7 @@ export function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e
 
 export function img(key){return IMG[key]||"";}
 
-export function photo(m){return (m&&m.cover_url)||(m&&m.image_url)||img(m&&m.img)||"";}
+export function photo(m){return img(m&&m.img)||img(PILLAR_IMG[m&&m.pillar])||"";}
 
 export function imgTag(src,alt,cls){return src?`<img ${cls?`class="${cls}"`:""} src="${esc(src)}" alt="${esc(alt||"")}" loading="lazy">`:"";}
 
