@@ -42,23 +42,35 @@ export function viewAdmin(app){
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="state.ADMIN.loaded=false;loadAdmin();paintAdmin()">${ico("refresh")} Refresh</button><button class="btn btn-sm btn-primary" onclick="exportCSV()">${ico("download")} Export CSV</button></div>
     </div>
     <div class="toolbar" style="margin-bottom:0">
-      <button class="fbtn" aria-pressed="${state.ADMIN.section==='submissions'||!state.ADMIN.section}" onclick="admSection('submissions')">${ico("inbox")} Submissions</button>
-      <button class="fbtn" aria-pressed="${state.ADMIN.section==='news'}" onclick="admSection('news')">${ico("news")} News</button>
+      <button class="fbtn adm-tab" data-s="submissions" aria-pressed="${state.ADMIN.section==='submissions'||!state.ADMIN.section}" onclick="admSection('submissions')">${ico("inbox")} Submissions</button>
+      <button class="fbtn adm-tab" data-s="news" aria-pressed="${state.ADMIN.section==='news'}" onclick="admSection('news')">${ico("news")} News</button>
+      <button class="fbtn adm-tab" data-s="adrequests" aria-pressed="${state.ADMIN.section==='adrequests'}" onclick="admSection('adrequests')">${ico("mega")} Ad Requests</button>
+      <button class="fbtn adm-tab" data-s="adproducts" aria-pressed="${state.ADMIN.section==='adproducts'}" onclick="admSection('adproducts')">${ico("star")} Ad Products</button>
     </div>
     <div id="adm_body"></div>
   </div></section>`;
+  updateAdmToolbar(state.ADMIN.section || 'submissions');
   if(!state.ADMIN.loaded)loadAdmin();
   paintAdmin();
 }
 
+function updateAdmToolbar(s){
+  $$(".adm-tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === s)));
+}
+
 export function admSection(s){
   state.ADMIN.section = s;
+  updateAdmToolbar(s);
   if(s==='news') paintNewsAdmin();
+  else if(s==='adproducts') paintAdProducts();
+  else if(s==='adrequests') { _adReqLoaded=false; paintAdRequests(); }
   else paintAdmin();
 }
 
 export function paintAdmin(){
-  if(state.ADMIN.section==='news'){paintNewsAdmin();return;}
+  if(state.ADMIN.section==='news'){if($("#adm_body"))paintNewsAdmin();return;}
+  if(state.ADMIN.section==='adproducts'){if($("#adm_body"))paintAdProducts();return;}
+  if(state.ADMIN.section==='adrequests'){if($("#adm_body"))paintAdRequests();return;}
   const body=$("#adm_body");if(!body)return;
   if(!state.ADMIN.loaded&&state.ADMIN.loading){body.innerHTML=`<div class="thinking" style="margin-top:16px" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading submissions…</b>${state.ADMIN.err?`<div class="muted">${esc(state.ADMIN.err)}</div>`:""}</div></div>`;return;}
   const rows=adminRows();
@@ -124,6 +136,7 @@ export async function paintNewsAdmin() {
   body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading articles…</b></div></div>`;
   _newsArticles = await _svc.getNews();
   _newsEditing = null;
+  if (state.ADMIN.section !== 'news') return;
   renderNewsSection();
 }
 
@@ -247,6 +260,178 @@ export async function newsDel(id) {
   if (!confirm("Delete this article? This cannot be undone.")) return;
   const ok = await _svc.deleteNews(id);
   if (ok) { _newsArticles = _newsArticles.filter(a => a._id !== id); renderNewsSection(); }
+}
+
+/* ── Ad Requests management ──────────────────────────────────────────── */
+
+const AD_REQ_STATUSES = ["new", "contacted", "booked"];
+const AD_REQ_STATUS_COLOR = { new: "color:var(--blue-text)", contacted: "color:var(--gold-text)", booked: "color:var(--green-text)" };
+let _adRequests = [];
+let _adReqFilter = "all";
+let _adReqLoaded = false;
+let _adReqLoading = false;
+
+export async function paintAdRequests(forceReload = false) {
+  const body = $("#adm_body"); if (!body) return;
+  if (_adReqLoading) return;
+  if (!_adReqLoaded || forceReload) {
+    _adReqLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading ad requests…</b></div></div>`;
+    _adRequests = await _svc.getAdRequests({ limit: 200 });
+    _adReqLoaded = true;
+    _adReqLoading = false;
+  }
+  if (state.ADMIN.section !== 'adrequests') return;
+  renderAdRequests();
+}
+
+function renderAdRequests() {
+  const body = $("#adm_body"); if (!body) return;
+  const counts = { all: _adRequests.length };
+  AD_REQ_STATUSES.forEach(s => counts[s] = _adRequests.filter(r => r.status === s).length);
+  const list = _adReqFilter === "all" ? _adRequests : _adRequests.filter(r => r.status === _adReqFilter);
+
+  body.innerHTML = `
+    <div class="astat" style="margin-top:16px">
+      <button class="kpi" aria-pressed="${_adReqFilter==='all'}" onclick="adReqFilter('all')"><span class="ki">${ico("mega")}</span><div><div class="n">${counts.all}</div><div class="l">All requests</div></div></button>
+      <button class="kpi" aria-pressed="${_adReqFilter==='new'}" onclick="adReqFilter('new')"><span class="ki" style="background:var(--blue-soft,#e8f0fe);color:var(--blue-text)">${ico("inbox")}</span><div><div class="n">${counts.new||0}</div><div class="l">New</div></div></button>
+      <button class="kpi" aria-pressed="${_adReqFilter==='contacted'}" onclick="adReqFilter('contacted')"><span class="ki" style="background:var(--gold-soft);color:var(--gold-text)">${ico("send")}</span><div><div class="n">${counts.contacted||0}</div><div class="l">Contacted</div></div></button>
+      <button class="kpi" aria-pressed="${_adReqFilter==='booked'}" onclick="adReqFilter('booked')"><span class="ki" style="background:var(--green-soft);color:var(--green-text)">${ico("check")}</span><div><div class="n">${counts.booked||0}</div><div class="l">Booked</div></div></button>
+    </div>
+    ${list.length ? `<div class="atbl-wrap" style="margin-top:12px"><table class="atbl"><thead><tr><th>Date</th><th>Company</th><th>Email</th><th>Format</th><th>Budget</th><th>Sector</th><th>Message</th><th>Status</th></tr></thead><tbody>
+      ${list.map(r => `<tr>
+        <td class="muted" style="white-space:nowrap;font-size:12px">${esc(fmtDate(r.createdAt))}</td>
+        <td><b>${esc(r.company)}</b></td>
+        <td style="user-select:all;font-size:13px">${esc(r.email)}</td>
+        <td><span class="tag">${esc(r.format)}</span></td>
+        <td class="muted">${esc(r.budget || "—")}</td>
+        <td class="muted">${esc(r.target_sector || "Any")}</td>
+        <td class="muted" style="font-size:13px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(r.message || "")}">${esc(r.message || "—")}</td>
+        <td>
+          <select class="adreq-status" data-id="${esc(r._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${AD_REQ_STATUS_COLOR[r.status]||""}">
+            ${AD_REQ_STATUSES.map(s => `<option value="${s}" ${r.status===s?"selected":""}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join("")}
+          </select>
+        </td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("mega")} No ad requests ${_adReqFilter !== "all" ? `with status "${_adReqFilter}"` : "yet"}.</div>`}`;
+
+  $$(".adreq-status").forEach(sel => {
+    sel.onchange = async (e) => {
+      const id = sel.dataset.id;
+      const status = sel.value;
+      const ok = await _svc.updateAdRequestStatus(id, status);
+      if (ok) {
+        const req = _adRequests.find(r => r._id === id);
+        if (req) req.status = status;
+        sel.style.cssText = `font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${AD_REQ_STATUS_COLOR[status]||""}`;
+        renderAdRequests();
+      }
+    };
+  });
+}
+
+export function adReqFilter(f) { _adReqFilter = f; renderAdRequests(); }
+
+/* ── Ad Products management ──────────────────────────────────────────── */
+
+const AD_PERIODS = ["month", "issue"];
+let _adProducts = [];
+let _adpEditing = null; // null=list, "new"=new, id=edit
+
+export async function paintAdProducts() {
+  const body = $("#adm_body"); if (!body) return;
+  body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading ad products…</b></div></div>`;
+  _adProducts = await _svc.getAdProducts();
+  _adpEditing = null;
+  if (state.ADMIN.section !== 'adproducts') return;
+  renderAdProducts();
+}
+
+function renderAdProducts() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_adpEditing !== null) { renderAdProductForm(); return; }
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <div><b>${_adProducts.length}</b> ad product${_adProducts.length === 1 ? "" : "s"} · shown on the Advertise page as pricing cards</div>
+      <button class="btn btn-sm btn-primary" onclick="adpNew()">${ico("rocket")} New product</button>
+    </div>
+    ${_adProducts.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Period</th><th>Active</th><th></th></tr></thead><tbody>
+      ${_adProducts.map(p => `<tr>
+        <td><b>${esc(p.name)}</b></td>
+        <td class="muted" style="font-size:13px">${esc(p.description || "")}</td>
+        <td><b>USD ${Number(p.price_usd).toLocaleString("en-US")}</b></td>
+        <td class="muted">/ ${esc(p.period || "month")}</td>
+        <td><span class="tag ${p.active !== false ? "plain" : ""}" style="${p.active !== false ? "color:var(--green-text)" : "color:var(--red,#e55)"}">${p.active !== false ? "Active" : "Inactive"}</span></td>
+        <td style="white-space:nowrap;display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="adpEdit('${esc(p._id)}')">${ico("edit")} Edit</button>
+          <button class="btn btn-sm" style="color:var(--red,#e55)" onclick="adpDel('${esc(p._id)}')">${ico("trash")} Delete</button>
+        </td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("star")} No ad products yet. Add one to populate the Advertise page pricing section.</div>`}`;
+}
+
+function renderAdProductForm() {
+  const body = $("#adm_body"); if (!body) return;
+  const p = _adpEditing === "new" ? {} : (_adProducts.find(x => x._id === _adpEditing) || {});
+  const isNew = _adpEditing === "new";
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <button class="btn btn-sm" onclick="adpCancel()">${ico("arrow")} Back to list</button>
+      <h2 style="font-size:18px;margin:0">${isNew ? "New ad product" : "Edit ad product"}</h2>
+    </div>
+    <form class="card" id="adpForm" novalidate style="margin-top:16px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-grid">
+        <div class="field full"><label for="ap_name">${ico("star")} Name <span class="req">*</span></label>
+          <input id="ap_name" value="${esc(p.name || "")}" placeholder="e.g. Leaderboard banner">
+        </div>
+        <div class="field full"><label for="ap_desc">${ico("file")} Description</label>
+          <input id="ap_desc" value="${esc(p.description || "")}" placeholder="e.g. Top of Directory & Search">
+        </div>
+        <div class="field"><label for="ap_price">${ico("coins")} Price (USD) <span class="req">*</span></label>
+          <input id="ap_price" type="number" min="0" step="1" value="${p.price_usd ?? ""}">
+        </div>
+        <div class="field"><label for="ap_period">${ico("calendar")} Billing period</label>
+          <select id="ap_period">${AD_PERIODS.map(per => `<option value="${per}" ${(p.period || "month") === per ? "selected" : ""}>${per}</option>`).join("")}</select>
+        </div>
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="ap_active" style="width:18px;height:18px" ${p.active !== false ? "checked" : ""}> Active (shown on Advertise page)
+        </label></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="ap_save" type="submit">${ico("rocket")} ${isNew ? "Create product" : "Save changes"}</button>
+        <button class="btn" type="button" onclick="adpCancel()">Cancel</button>
+      </div>
+    </form>`;
+  $("#adpForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const name = $("#ap_name").value.trim();
+    const price_usd = parseFloat($("#ap_price").value);
+    if (!name || isNaN(price_usd)) { toast("Required", "Name and price are required.", false); return; }
+    const btn = $("#ap_save"); btn.disabled = true; btn.textContent = "Saving…";
+    const payload = {
+      name,
+      description: $("#ap_desc").value.trim() || null,
+      price_usd,
+      period: $("#ap_period").value,
+      active: $("#ap_active").checked,
+    };
+    let ok;
+    if (isNew) ok = await _svc.createAdProduct(payload);
+    else ok = await _svc.updateAdProduct(p._id, payload);
+    if (ok) { _adProducts = await _svc.getAdProducts(); _adpEditing = null; renderAdProducts(); }
+    else { btn.disabled = false; btn.innerHTML = `${ico("rocket")} ${isNew ? "Create product" : "Save changes"}`; }
+  };
+}
+
+export function adpNew() { _adpEditing = "new"; renderAdProductForm(); }
+export function adpEdit(id) { _adpEditing = id; renderAdProductForm(); }
+export function adpCancel() { _adpEditing = null; renderAdProducts(); }
+export async function adpDel(id) {
+  if (!confirm("Delete this ad product? It will no longer appear on the Advertise page.")) return;
+  const ok = await _svc.deleteAdProduct(id);
+  if (ok) { _adProducts = _adProducts.filter(p => p._id !== id); renderAdProducts(); }
 }
 
 /* inline handlers in the markup call these by name */

@@ -1,9 +1,8 @@
 ﻿import APIRequest from "../../../utils/APIRequest.js";
 import ConfigAPIURL from "../../../config/ConfigAPIURL.js";
-import useAlert from "../../../hooks/useAlert.js";
+import { toast } from "../../../components/Toasts/toast.js";
 
 function useServices() {
-  const { publishNotification } = useAlert();
 
   const getNews = async ({ page = 1, limit = 20 } = {}) => {
     try {
@@ -40,13 +39,13 @@ function useServices() {
       );
       const d = response?.data;
       if (d?.responseCode === 100 ) {
-        publishNotification(`Subscribed â€" Alerts set up for ${topics.length} topic${topics.length !== 1 ? "s" : ""}.`, "success");
+        toast("Subscribed!", `Alerts set up for ${topics.length} topic${topics.length !== 1 ? "s" : ""}. We'll email you when matching news is published.`);
         return true;
       }
-      publishNotification(d?.message || "Could not subscribe.", "error");
+      toast("Error", d?.message || "Could not subscribe.", false);
       return false;
     } catch {
-      publishNotification("Unable to subscribe. Please try again.", "error");
+      toast("Error", "Unable to subscribe. Please try again.", false);
       return false;
     }
   };

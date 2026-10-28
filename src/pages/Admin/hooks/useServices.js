@@ -110,7 +110,66 @@ function useServices() {
     return false;
   }
 
-  return { getSubmissions, getUsers, exportSubmissionsCSV, uploadImage, getNews, createNews, updateNews, deleteNews };
+  async function getAdRequests({ status, page = 1, limit = 100 } = {}) {
+    try {
+      let url = `${ConfigAPIURL.adminAdRequests}?page=${page}&limit=${limit}`;
+      if (status) url += `&status=${encodeURIComponent(status)}`;
+      const res = await APIRequest.request("GET", url, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d.ad_requests || d.result || [];
+    } catch {}
+    return [];
+  }
+
+  async function updateAdRequestStatus(id, status) {
+    try {
+      const res = await APIRequest.request("PATCH", `${ConfigAPIURL.adminAdRequests}/${id}`, JSON.stringify({ status }));
+      const d = res?.data;
+      if (d?.responseCode === 100) { toast("Updated", `Status set to "${status}".`); return true; }
+      toast("Error", d?.message || "Could not update.", false);
+    } catch { toast("Error", "Could not update.", false); }
+    return false;
+  }
+
+  async function getAdProducts() {
+    try {
+      const res = await APIRequest.request("GET", ConfigAPIURL.adminAdProducts, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d.products || d.result || [];
+    } catch {}
+    return [];
+  }
+
+  async function createAdProduct(body) {
+    try {
+      const res = await APIRequest.request("POST", ConfigAPIURL.adminAdProducts, JSON.stringify(body));
+      const d = res?.data;
+      if (d?.responseCode === 100) { toast("Created", "Ad product added."); return d.product || true; }
+      toast("Error", d?.message || "Could not create.", false);
+    } catch { toast("Error", "Could not create.", false); }
+    return null;
+  }
+
+  async function updateAdProduct(id, body) {
+    try {
+      const res = await APIRequest.request("PUT", `${ConfigAPIURL.adminAdProducts}/${id}`, JSON.stringify(body));
+      const d = res?.data;
+      if (d?.responseCode === 100) { toast("Updated", "Ad product saved."); return d.product || true; }
+      toast("Error", d?.message || "Could not update.", false);
+    } catch { toast("Error", "Could not update.", false); }
+    return null;
+  }
+
+  async function deleteAdProduct(id) {
+    try {
+      await APIRequest.request("DELETE", `${ConfigAPIURL.adminAdProducts}/${id}`, "");
+      toast("Deleted", "Ad product removed.");
+      return true;
+    } catch { toast("Error", "Could not delete.", false); }
+    return false;
+  }
+
+  return { getSubmissions, getUsers, exportSubmissionsCSV, uploadImage, getNews, createNews, updateNews, deleteNews, getAdRequests, updateAdRequestStatus, getAdProducts, createAdProduct, updateAdProduct, deleteAdProduct };
 }
 
 export default useServices;

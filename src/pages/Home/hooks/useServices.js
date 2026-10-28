@@ -46,7 +46,34 @@ function useServices() {
     return [];
   }
 
-  return { getFeaturedMembers, getTopMembers, getFundingHighlights, getAds };
+  async function getPartners() {
+    try {
+      const res = await APIRequest.request("GET", ConfigAPIURL.partners, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d.partners || [];
+    } catch {}
+    return [];
+  }
+
+  async function getTestimonials() {
+    try {
+      const res = await APIRequest.request("GET", ConfigAPIURL.testimonials, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d.testimonials || [];
+    } catch {}
+    return [];
+  }
+
+  async function getTrending() {
+    try {
+      const res = await APIRequest.request("GET", ConfigAPIURL.trending, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d.keywords || [];
+    } catch {}
+    return [];
+  }
+
+  return { getFeaturedMembers, getTopMembers, getFundingHighlights, getAds, getPartners, getTestimonials, getTrending };
 }
 
 export default useServices;

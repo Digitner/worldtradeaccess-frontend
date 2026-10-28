@@ -1,2 +1,2 @@
 /* eslint-disable */
-export const NEWS_TOPICS=["Trade flows","Investment & capital","Commodities & resources","Policy & agreements","Digital payments"];
+export const NEWS_TOPICS=["Policy Brief","Investor Update","Trade Alert","Market Report","Opportunity","General"];

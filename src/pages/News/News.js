@@ -48,7 +48,13 @@ export async function viewNews(app) {
     if (!topics.length) { toast("Select topics", "Choose at least one topic to subscribe.", false); return; }
     const btn = $("#alertBtn"); btn.disabled = true; btn.textContent = "Subscribing…";
     const ok = await _svc.subscribeAlerts({ email: $("#na_email").value.trim(), topics });
-    if (!ok) { btn.disabled = false; btn.innerHTML = `${ico("bell")} Subscribe to alerts`; }
+    if (ok) {
+      btn.innerHTML = `${ico("check")} Subscribed!`;
+      btn.style.background = "var(--green-text,#16a34a)";
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = `${ico("bell")} Subscribe to alerts`;
+    }
   };
 }
 

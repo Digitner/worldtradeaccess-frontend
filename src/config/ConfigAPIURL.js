@@ -64,8 +64,18 @@ class ConfigAPIURL {
   static subscriptionsNewsletter = `${this.baseUrl}/api/subscriptions/newsletter`;
   static adRequests           = `${this.baseUrl}/api/ad-requests`;
 
+  // Home content
+  static partners         = `${this.baseUrl}/api/partners`;
+  static testimonials     = `${this.baseUrl}/api/testimonials`;
+  static trending         = `${this.baseUrl}/api/trending`;
+
   // File upload
   static uploadFile       = `${this.baseUrl}/api/upload/file`;
+
+  // Admin: home content
+  static adminPartners        = `${this.baseUrl}/api/admin/partners`;
+  static adminTestimonials    = `${this.baseUrl}/api/admin/testimonials`;
+  static adminTrending        = `${this.baseUrl}/api/admin/trending`;
 
   // Admin
   static adminSubmissions       = `${this.baseUrl}/api/admin/submissions`;

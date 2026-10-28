@@ -20,13 +20,28 @@ export function heroChip(t){$("#heroQ").value=t;heroSearch();}
 
 export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=_topMembers.filter(m=>(m.sector||m.pillar)===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m._id||m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.company_name||m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country)} ${esc(m.country)} · ${TYPE_LABEL[m.goal||m.type]||""}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
 
+const FALLBACK_TRENDING = ["halal packaged foods","wheat & edible oils","logistics JV partner","solar EPC","Islamic trade finance","IoT devices OEM"];
+const FALLBACK_PARTNERS = ["Asian Institute of Management","China Construction Bank","Asian Development Bank","BRICS+ Universities Association","SHIELD Group"];
+const FALLBACK_TESTIMONIALS = [
+  { quote: "A supermarket group in KL found three qualified halal suppliers in a week. Intent matching did what months of trade-fair cards never could.", name: "Farah Aziz", company: "KL Prime Grocers, Malaysia", initials: "FA" },
+  { quote: "We listed a USD 6M raise and were introduced to two corridor funds within days. The reasoning attached to each match saved us hours of screening.", name: "Dewi Pratama", company: "Garuda Logistics Tech, Indonesia", initials: "DP" },
+  { quote: "As a fund, inbound quality is the whole game. WorldTradeAccess sends us deals that fit our thesis and geography.", name: "Omar Rashid", company: "Gulf Bridge Capital, UAE", initials: "OR" },
+];
+
 export async function viewHome(app){
   // Load API data in parallel
-  const [feat, topMembers, funding] = await Promise.all([
+  const [feat, topMembers, funding, partners, testimonials, trendingKws] = await Promise.all([
     _svc.getFeaturedMembers(),
     _svc.getTopMembers(),
     _svc.getFundingHighlights(),
+    _svc.getPartners(),
+    _svc.getTestimonials(),
+    _svc.getTrending(),
   ]);
+
+  const finalTrending = trendingKws.length ? trendingKws.map(k => k.keyword) : FALLBACK_TRENDING;
+  const finalPartners = partners.length ? partners : FALLBACK_PARTNERS.map(name => ({ name }));
+  const finalTestimonials = testimonials.length ? testimonials : FALLBACK_TESTIMONIALS;
   _topMembers = topMembers;
   // Normalize field names for card components
   const featNorm = feat.map(m => ({ ...m, id: m._id || m.id, name: m.company_name || m.name, type: m.goal || m.type, pillar: m.sector || m.pillar }));
@@ -46,7 +61,7 @@ export async function viewHome(app){
             <input id="heroQ" placeholder="e.g. halal snacks distributor in Malaysia">
             <button type="submit">${ico("sparkle")} Ask AI</button>
           </form>
-          <div class="trend"><span style="color:#a9b8cf;font-size:12.5px">Trending:</span>${["halal packaged foods","wheat & edible oils","logistics JV partner","solar EPC","Islamic trade finance","IoT devices OEM"].map(t=>`<button class="tc" onclick="heroChip('${t}')">${t}</button>`).join("")}</div>
+          <div class="trend"><span style="color:#a9b8cf;font-size:12.5px">Trending:</span>${finalTrending.map(t=>`<button class="tc" onclick="heroChip('${esc(t)}')">${esc(t)}</button>`).join("")}</div>
         </div>
         <div class="getcard">
           <div class="serif" style="font-weight:600;font-size:20px">Get started free</div>
@@ -90,16 +105,16 @@ export async function viewHome(app){
 
   <section style="padding-top:8px"><div class="wrap">
     <div class="section-h"><h2>Trusted network</h2></div>
-    <div class="partners">${["Asian Institute of Management","China Construction Bank","Asian Development Bank","BRICS+ Universities Association","SHIELD Group"].map(p=>`<span class="partner"><span class="pd"></span>${p}</span>`).join("")}</div>
+    <div class="partners">${finalPartners.map(p=>`<span class="partner">${p.logo_url?`<img src="${esc(p.logo_url)}" alt="${esc(p.name)}" style="height:22px;object-fit:contain;vertical-align:middle;margin-right:6px">`:`<span class="pd"></span>`}${p.website?`<a href="${esc(p.website.startsWith('http')?p.website:'https://'+p.website)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(p.name)}</a>`:esc(p.name)}</span>`).join("")}</div>
   </div></section>
 
   <section style="padding-top:14px"><div class="wrap">
     <div class="section-h"><h2>Matches that turned into deals</h2><span class="muted">Sample stories</span></div>
     <div class="feature-row">
-      ${[["A supermarket group in KL found three qualified halal suppliers in a week. Intent matching did what months of trade-fair cards never could.","FA","Farah Aziz","KL Prime Grocers, Malaysia"],
-         ["We listed a USD 6M raise and were introduced to two corridor funds within days. The reasoning attached to each match saved us hours of screening.","DP","Dewi Pratama","Garuda Logistics Tech, Indonesia"],
-         ["As a fund, inbound quality is the whole game. WorldTradeAccess sends us deals that fit our thesis and geography.","OR","Omar Rashid","Gulf Bridge Capital, UAE"]]
-        .map(([q,ini,n,r])=>`<figure class="quote"><blockquote>"${q}"</blockquote><figcaption class="who"><span class="av">${ini}</span><span><b style="font-size:14px;display:block">${n}</b><span class="muted">${r}</span></span></figcaption></figure>`).join("")}
+      ${finalTestimonials.map(t=>{
+        const ini = t.initials || (t.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        return `<figure class="quote"><blockquote>"${esc(t.quote)}"</blockquote><figcaption class="who">${t.avatar_url?`<img src="${esc(t.avatar_url)}" alt="${esc(t.name)}" class="av" style="object-fit:cover">`:`<span class="av">${esc(ini)}</span>`}<span><b style="font-size:14px;display:block">${esc(t.name)}</b><span class="muted">${esc(t.company)}</span></span></figcaption></figure>`;
+      }).join("")}
     </div>
   </div></section>
 
