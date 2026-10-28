@@ -23,6 +23,7 @@ class ConfigAPIURL {
   static myIntros         = `${this.baseUrl}/api/me/intros`;
   static myFunding        = `${this.baseUrl}/api/me/funding`;
   static myDeals          = `${this.baseUrl}/api/me/deals`;
+  static myInboundDeals   = `${this.baseUrl}/api/me/inbound-deals`;
   static myMatchCount     = `${this.baseUrl}/api/me/match-count`;
 
   // Members

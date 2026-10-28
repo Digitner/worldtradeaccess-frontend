@@ -1,9 +1,7 @@
 ﻿import APIRequest from "../../../utils/APIRequest.js";
 import ConfigAPIURL from "../../../config/ConfigAPIURL.js";
-import useAlert from "../../../hooks/useAlert.js";
 
 function useServices() {
-  const { publishNotification } = useAlert();
 
   const getMembers = async ({ q = "", sector = "", page = 1, limit = 40 } = {}) => {
     try {

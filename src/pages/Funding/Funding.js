@@ -11,6 +11,7 @@ import { state } from '../../utils/state.js';
 
 const _svc = useServices();
 let _listings = [];
+let _inboundMap = {}; // listingId → investor count
 
 export async function viewFunding(app, _a, soft) {
   if (soft && $("#fund_list")) { paintFund(); return; }
@@ -75,8 +76,17 @@ export async function viewFunding(app, _a, soft) {
     else { prev.style.display = "none"; if (drop) drop.style.display = "flex"; e.target.value = ""; window._fundImgUrl = null; }
   };
 
-  // Load listings from API
-  _listings = await _svc.getFunding();
+  // Load listings + inbound deals (for owner investor count)
+  const [fetchedListings, inbound] = await Promise.all([
+    _svc.getFunding(),
+    state.USER ? _svc.getInboundDeals() : Promise.resolve([]),
+  ]);
+  _listings = fetchedListings;
+  _inboundMap = {};
+  for (const d of inbound) {
+    const lid = d.funding_listing_id?.toString?.() || String(d.funding_listing_id || "");
+    _inboundMap[lid] = (_inboundMap[lid] || 0) + 1;
+  }
   paintFund();
 
   $("#fundForm").onsubmit = async (e) => {
@@ -115,6 +125,10 @@ export function paintFund() {
     const country = f.country || (state.USER && state.USER.country) || "";
     const cls = f.type === "For Sale" ? "gold" : f.type === "Seeking JV" ? "" : "green";
     const fundImg = f.cover_url || f.image_url || "";
-    return `<article class="fund-item"><div class="ph">${fundImg ? imgTag(fundImg, "") : ""}</div><div class="b"><div class="top"><div><h3 class="serif" style="font-weight:600;font-size:18px;margin:0">${esc(company)}</h3><div class="muted" style="margin-top:3px;display:flex;gap:6px;align-items:center">${ccChip(country)} ${esc(country)} · ${esc(f.sector || "")}</div></div><div style="text-align:right"><span class="tag ${cls}">${esc(f.type)}</span><div class="amt" style="margin-top:6px">${esc(f.amount || "Undisclosed")}</div></div></div><p style="margin:10px 0 0;color:var(--text-soft);font-size:14px;line-height:1.55">${esc(f.description || f.desc || "")}</p><div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="go('#/deal/${esc(f._id || f.id)}')">${ico("eye")} View opportunity</button></div></div></article>`;
+    const lid = (f._id || f.id || "").toString();
+    const isOwn = state.USER && (f.owner_user_id?.toString?.() === (state.USER._id || state.USER.id)?.toString?.());
+    const investorCount = isOwn ? (_inboundMap[lid] || 0) : 0;
+    const investorBadge = isOwn ? `<span class="tag ${investorCount > 0 ? "green" : ""}" style="font-size:12px">${ico("users")} ${investorCount} investor${investorCount !== 1 ? "s" : ""} interested</span>` : "";
+    return `<article class="fund-item"><div class="ph">${fundImg ? imgTag(fundImg, "") : ""}</div><div class="b"><div class="top"><div><h3 class="serif" style="font-weight:600;font-size:18px;margin:0">${esc(company)}</h3><div class="muted" style="margin-top:3px;display:flex;gap:6px;align-items:center">${ccChip(country)} ${esc(country)} · ${esc(f.sector || "")}</div></div><div style="text-align:right"><span class="tag ${cls}">${esc(f.type)}</span><div class="amt" style="margin-top:6px">${esc(f.amount || "Undisclosed")}</div></div></div><p style="margin:10px 0 0;color:var(--text-soft);font-size:14px;line-height:1.55">${esc(f.description || f.desc || "")}</p><div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="go('#/deal/${esc(f._id || f.id)}')">${ico("eye")} View opportunity</button>${investorBadge}</div></div></article>`;
   }).join("");
 }

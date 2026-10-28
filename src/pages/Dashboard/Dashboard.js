@@ -16,11 +16,12 @@ export async function viewDashboard(app) {
   app.innerHTML = `<section><div class="wrap"><div class="loading-shimmer" style="height:300px;border-radius:12px;margin-top:24px"></div></div></section>`;
 
   const svc = useServices();
-  const [dashboard, intros, myFund, deals, opportunities] = await Promise.all([
+  const [dashboard, intros, myFund, deals, inboundDeals, opportunities] = await Promise.all([
     svc.getDashboard(),
     svc.getMyIntros(),
     svc.getMyFunding(),
     svc.getMyDeals(),
+    svc.getInboundDeals(),
     svc.getOpportunities(),
   ]);
 
@@ -93,9 +94,46 @@ export async function viewDashboard(app) {
         </div>
         <div class="card">
           <h2 style="font-size:18px;margin:0 0 6px">Your active deals</h2>
-          ${deals.length ? deals.map(d => `<button class="list-row" style="width:100%;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;text-align:left;color:var(--text)" onclick="go('#/deal/${esc(d.funding_listing_id || d._id)}')"><span class="ic">${ico("briefcase")}</span><span style="flex:1"><b>${esc(d.company_name || d.company || "")}</b><span class="muted" style="display:block">${esc(d.amount || "")}</span></span><span class="tag ${d.stage >= 5 ? "green" : ""}">${esc(DEAL_STAGES[d.stage] || "")}</span></button>`).join("") : `<p class="muted" style="margin:8px 0 0">No active deals. <button class="linkish" onclick="go('#/funding')">Explore opportunities →</button></p>`}
+          ${deals.length ? deals.map(d => `<button class="list-row" style="width:100%;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;text-align:left;color:var(--text)" onclick="go('#/deal/${esc(d.funding_listing_id || d._id)}')"><span class="ic">${ico("briefcase")}</span><span style="flex:1"><b>${esc(d.listing?.company || d.company_name || d.company || "")}</b><span class="muted" style="display:block">${esc(d.listing?.amount || d.amount || "")}</span></span><span class="tag ${d.stage >= 5 ? "green" : ""}">${esc(DEAL_STAGES[d.stage] || "")}</span></button>`).join("") : `<p class="muted" style="margin:8px 0 0">No active deals. <button class="linkish" onclick="go('#/funding')">Explore opportunities →</button></p>`}
+        </div>
+        <div class="card">
+          <div class="top" style="margin-bottom:10px"><h2 style="font-size:18px;margin:0">Deals on my listings</h2><span class="tag">${inboundDeals.length}</span></div>
+          ${inboundDeals.length ? inboundDeals.map(d => {
+            const member = d.interested_member;
+            const listing = d.listing;
+            const canAdvance = d.stage < 5;
+            return `<div class="list-row" style="flex-wrap:wrap;gap:6px 0">
+              <span class="ic">${ico("handshake")}</span>
+              <div style="flex:1;min-width:0">
+                <b style="font-size:14px">${esc(member?.company_name || member?.contact_person || "Member")}</b>
+                <div class="muted" style="font-size:12.5px">${esc(listing?.company || "")} · <span class="tag" style="font-size:11px;padding:1px 6px">${esc(DEAL_STAGES[d.stage] || "")}</span></div>
+              </div>
+              ${canAdvance ? `<button class="btn btn-sm btn-primary" onclick="advanceDealOwner('${esc(d._id)}','${d.stage + 1}',this)" style="font-size:12px;padding:4px 10px">${ico("arrow")} Move to ${esc(DEAL_STAGES[d.stage + 1] || "")}</button>` : `<span class="tag green">${ico("check")}Closed</span>`}
+            </div>`;
+          }).join("") : `<p class="muted" style="margin:8px 0 0">No one has expressed interest in your listings yet.</p>`}
         </div>
       </div>
     </div>
   </div></section>`;
+
+  window.advanceDealOwner = async (dealId, toStage, btn) => {
+    if (!dealId) return;
+    btn.disabled = true; btn.textContent = "Moving…";
+    try {
+      const { default: APIRequest } = await import('../../utils/APIRequest.js');
+      const { default: ConfigAPIURL } = await import('../../config/ConfigAPIURL.js');
+      const { toast } = await import('../../components/Toasts/toast.js');
+      const response = await APIRequest.request("POST", `${ConfigAPIURL.deals}/${dealId}/advance`, JSON.stringify({ to_stage: Number(toStage) }));
+      const d = response?.data;
+      if (d?.responseCode === 100) {
+        toast("Deal advanced!", `Moved to ${DEAL_STAGES[Number(toStage)] || ""}.`);
+        viewDashboard(document.getElementById("app"));
+      } else {
+        toast("Error", d?.message || "Could not advance deal.", false);
+        btn.disabled = false; btn.textContent = "Move →";
+      }
+    } catch {
+      btn.disabled = false; btn.textContent = "Move →";
+    }
+  };
 }

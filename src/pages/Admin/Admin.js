@@ -46,6 +46,13 @@ export function viewAdmin(app){
       <button class="fbtn adm-tab" data-s="news" aria-pressed="${state.ADMIN.section==='news'}" onclick="admSection('news')">${ico("news")} News</button>
       <button class="fbtn adm-tab" data-s="adrequests" aria-pressed="${state.ADMIN.section==='adrequests'}" onclick="admSection('adrequests')">${ico("mega")} Ad Requests</button>
       <button class="fbtn adm-tab" data-s="adproducts" aria-pressed="${state.ADMIN.section==='adproducts'}" onclick="admSection('adproducts')">${ico("star")} Ad Products</button>
+      <button class="fbtn adm-tab" data-s="content" aria-pressed="${state.ADMIN.section==='content'}" onclick="admSection('content')">${ico("grid")} Content</button>
+      <button class="fbtn adm-tab" data-s="deals" aria-pressed="${state.ADMIN.section==='deals'}" onclick="admSection('deals')">${ico("briefcase")} Deals</button>
+      <button class="fbtn adm-tab" data-s="funding" aria-pressed="${state.ADMIN.section==='funding'}" onclick="admSection('funding')">${ico("rocket")} Funding</button>
+      <button class="fbtn adm-tab" data-s="members" aria-pressed="${state.ADMIN.section==='members'}" onclick="admSection('members')">${ico("users")} Members</button>
+      <button class="fbtn adm-tab" data-s="users" aria-pressed="${state.ADMIN.section==='users'}" onclick="admSection('users')">${ico("user")} Users</button>
+      <button class="fbtn adm-tab" data-s="subscribers" aria-pressed="${state.ADMIN.section==='subscribers'}" onclick="admSection('subscribers')">${ico("bell")} Subscribers</button>
+      <button class="fbtn adm-tab" data-s="contact" aria-pressed="${state.ADMIN.section==='contact'}" onclick="admSection('contact')">${ico("send")} Contact</button>
     </div>
     <div id="adm_body"></div>
   </div></section>`;
@@ -64,6 +71,13 @@ export function admSection(s){
   if(s==='news') paintNewsAdmin();
   else if(s==='adproducts') paintAdProducts();
   else if(s==='adrequests') { _adReqLoaded=false; paintAdRequests(); }
+  else if(s==='content') paintContent();
+  else if(s==='deals') { _admDealsLoaded=false; paintAdminDeals(); }
+  else if(s==='funding') { _admFundingLoaded=false; paintAdminFunding(); }
+  else if(s==='members') { _admMembersLoaded=false; paintAdminMembers(); }
+  else if(s==='users') { _admUsersLoaded=false; paintAdminUsers(); }
+  else if(s==='subscribers') { _admSubsLoaded=false; paintAdminSubscribers(); }
+  else if(s==='contact') { _admContactLoaded=false; paintAdminContact(); }
   else paintAdmin();
 }
 
@@ -71,6 +85,13 @@ export function paintAdmin(){
   if(state.ADMIN.section==='news'){if($("#adm_body"))paintNewsAdmin();return;}
   if(state.ADMIN.section==='adproducts'){if($("#adm_body"))paintAdProducts();return;}
   if(state.ADMIN.section==='adrequests'){if($("#adm_body"))paintAdRequests();return;}
+  if(state.ADMIN.section==='content'){if($("#adm_body"))paintContent();return;}
+  if(state.ADMIN.section==='deals'){if($("#adm_body"))paintAdminDeals();return;}
+  if(state.ADMIN.section==='funding'){if($("#adm_body"))paintAdminFunding();return;}
+  if(state.ADMIN.section==='members'){if($("#adm_body"))paintAdminMembers();return;}
+  if(state.ADMIN.section==='users'){if($("#adm_body"))paintAdminUsers();return;}
+  if(state.ADMIN.section==='subscribers'){if($("#adm_body"))paintAdminSubscribers();return;}
+  if(state.ADMIN.section==='contact'){if($("#adm_body"))paintAdminContact();return;}
   const body=$("#adm_body");if(!body)return;
   if(!state.ADMIN.loaded&&state.ADMIN.loading){body.innerHTML=`<div class="thinking" style="margin-top:16px" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading submissions…</b>${state.ADMIN.err?`<div class="muted">${esc(state.ADMIN.err)}</div>`:""}</div></div>`;return;}
   const rows=adminRows();
@@ -433,6 +454,627 @@ export async function adpDel(id) {
   const ok = await _svc.deleteAdProduct(id);
   if (ok) { _adProducts = _adProducts.filter(p => p._id !== id); renderAdProducts(); }
 }
+
+/* ── Admin Deals ─────────────────────────────────────────────────────── */
+
+const DEAL_STAGE_NAMES = ["Interest Sent","Data Room","Intro Call","Due Diligence","Term Sheet","Closed"];
+let _admDeals = [];
+let _admDealsLoaded = false;
+let _admDealsLoading = false;
+let _admDealsStageFilter = "";
+
+export async function paintAdminDeals() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admDealsLoading) return;
+  if (!_admDealsLoaded) {
+    _admDealsLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading deals…</b></div></div>`;
+    _admDeals = await _svc.getAdminDeals({ limit: 200 });
+    _admDealsLoaded = true;
+    _admDealsLoading = false;
+  }
+  if (state.ADMIN.section !== 'deals') return;
+  renderAdminDeals();
+}
+
+function renderAdminDeals() {
+  const body = $("#adm_body"); if (!body) return;
+  const stageCounts = {};
+  _admDeals.forEach(d => { stageCounts[d.stage] = (stageCounts[d.stage] || 0) + 1; });
+  const list = _admDealsStageFilter === "" ? _admDeals : _admDeals.filter(d => d.stage === Number(_admDealsStageFilter));
+
+  body.innerHTML = `
+    <div class="astat" style="margin-top:16px">
+      <button class="kpi" aria-pressed="${_admDealsStageFilter===''}" onclick="admDealsFilter('')"><span class="ki">${ico("briefcase")}</span><div><div class="n">${_admDeals.length}</div><div class="l">All deals</div></div></button>
+      ${DEAL_STAGE_NAMES.map((name, i) => `<button class="kpi" aria-pressed="${_admDealsStageFilter===String(i)}" onclick="admDealsFilter('${i}')"><span class="ki" style="font-size:12px;font-weight:700">${i}</span><div><div class="n">${stageCounts[i]||0}</div><div class="l">${name}</div></div></button>`).join("")}
+    </div>
+    <div class="top" style="margin-top:12px">
+      <div class="muted"><b>${list.length}</b> deal${list.length===1?"":"s"}</div>
+      <button class="btn btn-sm" onclick="_admDealsLoaded=false;paintAdminDeals()">${ico("refresh")} Refresh</button>
+    </div>
+    ${list.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Created</th><th>Listing / Company</th><th>Investor</th><th>Stage</th><th>Move to</th></tr></thead><tbody>
+      ${list.map(d => {
+        const company = d.funding_listing_id?.company || d.listing?.company || "—";
+        const investor = d.user_id?.email || d.investor?.email || "—";
+        const curStage = d.stage ?? 0;
+        return `<tr>
+          <td class="muted" style="white-space:nowrap;font-size:12px">${esc(fmtDate(d.createdAt))}</td>
+          <td><b>${esc(company)}</b></td>
+          <td class="muted" style="font-size:13px">${esc(investor)}</td>
+          <td><span class="tag">${esc(DEAL_STAGE_NAMES[curStage]||curStage)}</span></td>
+          <td>
+            <select class="adm-deal-stage" data-id="${esc(d._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)">
+              ${DEAL_STAGE_NAMES.map((n,i) => `<option value="${i}" ${i===curStage?"selected":""}>${i} – ${n}</option>`).join("")}
+            </select>
+          </td>
+        </tr>`;
+      }).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("briefcase")} No deals ${_admDealsStageFilter !== "" ? `at stage ${_admDealsStageFilter}` : "yet"}.</div>`}`;
+
+  $$(".adm-deal-stage").forEach(sel => {
+    sel.onchange = async () => {
+      const id = sel.dataset.id;
+      const stage = Number(sel.value);
+      const ok = await _svc.updateDealStage(id, stage);
+      if (ok) {
+        const deal = _admDeals.find(d => d._id === id);
+        if (deal) deal.stage = stage;
+        renderAdminDeals();
+      }
+    };
+  });
+}
+
+export function admDealsFilter(f) { _admDealsStageFilter = f; renderAdminDeals(); }
+
+/* ── Admin Funding ───────────────────────────────────────────────────── */
+
+const FUNDING_STATUSES = ["live","closed","hidden"];
+const FUNDING_STATUS_COLOR = { live: "color:var(--green-text)", closed: "color:var(--red,#e55)", hidden: "color:var(--text-soft)" };
+const DOC_TITLES = ["Investment teaser","Financials & projections","Cap table","Legal & compliance"];
+
+let _admFunding = [];
+let _admFundingLoaded = false;
+let _admFundingLoading = false;
+let _admFundingStatusFilter = "";
+let _admFundingSelected = null; // listing id currently showing data room
+let _admFundingDocs = [];
+
+export async function paintAdminFunding() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admFundingLoading) return;
+  if (!_admFundingLoaded) {
+    _admFundingLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading listings…</b></div></div>`;
+    _admFunding = await _svc.getAdminFunding({ limit: 200 });
+    _admFundingLoaded = true;
+    _admFundingLoading = false;
+  }
+  if (state.ADMIN.section !== 'funding') return;
+  renderAdminFunding();
+}
+
+function renderAdminFunding() {
+  const body = $("#adm_body"); if (!body) return;
+  const counts = { all: _admFunding.length };
+  FUNDING_STATUSES.forEach(s => counts[s] = _admFunding.filter(f => f.status === s).length);
+  const list = _admFundingStatusFilter === "" ? _admFunding : _admFunding.filter(f => f.status === _admFundingStatusFilter);
+  const sel = _admFundingSelected ? _admFunding.find(f => f._id === _admFundingSelected) : null;
+
+  body.innerHTML = `
+    <div class="astat" style="margin-top:16px">
+      <button class="kpi" aria-pressed="${_admFundingStatusFilter===''}" onclick="admFundingFilter('')"><span class="ki">${ico("rocket")}</span><div><div class="n">${counts.all}</div><div class="l">All listings</div></div></button>
+      ${FUNDING_STATUSES.map(s => `<button class="kpi" aria-pressed="${_admFundingStatusFilter===s}" onclick="admFundingFilter('${s}')"><span class="ki" style="${FUNDING_STATUS_COLOR[s]||""}">${ico(s==="live"?"check":s==="closed"?"x":"lock")}</span><div><div class="n">${counts[s]||0}</div><div class="l">${s.charAt(0).toUpperCase()+s.slice(1)}</div></div></button>`).join("")}
+    </div>
+    <div class="split" style="margin-top:12px">
+      <div class="main">
+        <div class="top"><div class="muted"><b>${list.length}</b> listing${list.length===1?"":"s"}</div><button class="btn btn-sm" onclick="_admFundingLoaded=false;paintAdminFunding()">${ico("refresh")} Refresh</button></div>
+        ${list.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Company</th><th>Type</th><th>Amount</th><th>Sector</th><th>Status</th><th>Data room</th></tr></thead><tbody>
+          ${list.map(f => `<tr class="${_admFundingSelected===f._id?"sel-row":""}">
+            <td><b>${esc(f.company||f.company_name||"")}</b><div class="muted" style="font-size:11px">${esc(fmtDate(f.createdAt))}</div></td>
+            <td><span class="tag">${esc(f.type||"")}</span></td>
+            <td class="muted">${esc(f.amount||"Undisclosed")}</td>
+            <td class="muted">${esc(f.sector||"")}</td>
+            <td>
+              <select class="adm-fund-status" data-id="${esc(f._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${FUNDING_STATUS_COLOR[f.status]||""}">
+                ${FUNDING_STATUSES.map(s => `<option value="${s}" ${f.status===s?"selected":""}>${s}</option>`).join("")}
+              </select>
+            </td>
+            <td><button class="btn btn-sm" onclick="admFundingOpenRoom('${esc(f._id)}')">${ico("file")} Docs</button></td>
+          </tr>`).join("")}
+        </tbody></table></div>`
+        : `<div class="empty" style="margin-top:24px">${ico("rocket")} No listings.</div>`}
+      </div>
+      <div class="side" id="adm_room_panel">${sel ? renderDataRoomPanel(sel) : `<div class="drawer"><div class="muted">${ico("file")} Click "Docs" on a listing to manage its data room.</div></div>`}</div>
+    </div>`;
+
+  $$(".adm-fund-status").forEach(sel => {
+    sel.onchange = async () => {
+      const id = sel.dataset.id;
+      const status = sel.value;
+      const ok = await _svc.updateFundingStatus(id, status);
+      if (ok) {
+        const item = _admFunding.find(f => f._id === id);
+        if (item) item.status = status;
+        sel.style.cssText = `font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${FUNDING_STATUS_COLOR[status]||""}`;
+      }
+    };
+  });
+}
+
+function renderDataRoomPanel(listing) {
+  const docs = _admFundingDocs;
+  return `<div class="drawer">
+    <div class="top" style="align-items:center">
+      <h3 style="font-size:16px;margin:0">${ico("file")} Data room</h3>
+      <button class="icon-btn" onclick="admFundingCloseRoom()" style="width:32px;height:32px">${ico("x")}</button>
+    </div>
+    <div class="muted" style="font-size:13px;margin:4px 0 12px">${esc(listing.company||"")}</div>
+    <div id="adm_room_docs">
+      ${docs.length ? docs.map(d => `<div class="list-row" style="gap:8px"><span class="ic">${ico("file")}</span><div style="flex:1;min-width:0"><b style="font-size:13px">${esc(d.title)}</b>${d.file_url||d.url?`<div><a href="${esc(d.file_url||d.url)}" target="_blank" rel="noopener" class="muted" style="font-size:12px">${ico("eye")} Open</a></div>`:"<div class='muted' style='font-size:12px'>No file</div>"}</div><button class="btn btn-sm" style="color:var(--red,#e55);flex-shrink:0" onclick="admRoomDel('${esc(d._id)}')">${ico("trash")}</button></div>`).join("")
+      : `<p class="muted" style="font-size:13px">No documents yet.</p>`}
+    </div>
+    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <b style="font-size:13px">Add document</b>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <select id="adm_doc_title" style="padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px">
+          ${DOC_TITLES.map(t => `<option>${esc(t)}</option>`).join("")}
+        </select>
+        <input id="adm_doc_url" placeholder="File URL (https://…)" style="padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px">
+        <button class="btn btn-sm btn-primary" onclick="admRoomAdd('${esc(listing._id)}')">${ico("rocket")} Add document</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+export async function admFundingOpenRoom(id) {
+  _admFundingSelected = id;
+  const listing = _admFunding.find(f => f._id === id);
+  if (!listing) return;
+  const panel = $("#adm_room_panel"); if (!panel) return;
+  panel.innerHTML = `<div class="drawer"><div class="muted">${ico("clock")} Loading documents…</div></div>`;
+  _admFundingDocs = await _svc.getDataRoomDocs(id);
+  panel.innerHTML = renderDataRoomPanel(listing);
+}
+
+export function admFundingCloseRoom() {
+  _admFundingSelected = null;
+  const panel = $("#adm_room_panel"); if (!panel) return;
+  panel.innerHTML = `<div class="drawer"><div class="muted">${ico("file")} Click "Docs" on a listing to manage its data room.</div></div>`;
+}
+
+export async function admRoomAdd(fundingId) {
+  const title = $("#adm_doc_title")?.value;
+  const file_url = $("#adm_doc_url")?.value.trim();
+  if (!file_url) { toast("Required", "Paste the file URL first.", false); return; }
+  const ok = await _svc.addDataRoomDoc(fundingId, { title, file_url });
+  if (ok) {
+    _admFundingDocs = await _svc.getDataRoomDocs(fundingId);
+    const listing = _admFunding.find(f => f._id === fundingId);
+    const panel = $("#adm_room_panel"); if (panel && listing) panel.innerHTML = renderDataRoomPanel(listing);
+  }
+}
+
+export async function admRoomDel(docId) {
+  if (!confirm("Delete this document?")) return;
+  const ok = await _svc.deleteDataRoomDoc(docId);
+  if (ok && _admFundingSelected) {
+    _admFundingDocs = _admFundingDocs.filter(d => d._id !== docId);
+    const listing = _admFunding.find(f => f._id === _admFundingSelected);
+    const panel = $("#adm_room_panel"); if (panel && listing) panel.innerHTML = renderDataRoomPanel(listing);
+  }
+}
+
+export function admFundingFilter(f) { _admFundingStatusFilter = f; renderAdminFunding(); }
+
+/* ── Content management (Partners / Testimonials / Trending) ─────────── */
+
+let _contentTab = 'partners'; // partners | testimonials | trending
+let _partners = [], _testimonials = [], _trending = [];
+let _contentEditing = null; // null=list, "new"=new, id=edit
+let _contentLoaded = false;
+
+export async function paintContent() {
+  const body = $("#adm_body"); if (!body) return;
+  if (!_contentLoaded) {
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading content…</b></div></div>`;
+    [_partners, _testimonials, _trending] = await Promise.all([_svc.getPartners(), _svc.getTestimonials(), _svc.getTrending()]);
+    _contentLoaded = true;
+  }
+  if (state.ADMIN.section !== 'content') return;
+  _contentEditing = null;
+  renderContent();
+}
+
+function renderContent() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_contentEditing !== null) { renderContentForm(); return; }
+  const items = _contentTab === 'partners' ? _partners : _contentTab === 'testimonials' ? _testimonials : _trending;
+  body.innerHTML = `
+    <div class="toolbar" style="margin-top:16px;margin-bottom:0">
+      <button class="fbtn" aria-pressed="${_contentTab==='partners'}" onclick="contentTab('partners')">${ico("handshake")} Partners <span class="n">${_partners.length}</span></button>
+      <button class="fbtn" aria-pressed="${_contentTab==='testimonials'}" onclick="contentTab('testimonials')">${ico("user")} Testimonials <span class="n">${_testimonials.length}</span></button>
+      <button class="fbtn" aria-pressed="${_contentTab==='trending'}" onclick="contentTab('trending')">${ico("sparkle")} Trending Keywords <span class="n">${_trending.length}</span></button>
+    </div>
+    <div class="top" style="margin-top:14px">
+      <div class="muted">Shown live on the Home page</div>
+      <button class="btn btn-sm btn-primary" onclick="contentNew()">${ico("rocket")} Add ${_contentTab === 'partners' ? 'partner' : _contentTab === 'testimonials' ? 'testimonial' : 'keyword'}</button>
+    </div>
+    ${items.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr>${
+      _contentTab === 'partners' ? '<th>Name</th><th>Website</th><th>Logo URL</th><th>Active</th><th></th>' :
+      _contentTab === 'testimonials' ? '<th>Quote</th><th>Name</th><th>Company</th><th>Active</th><th></th>' :
+      '<th>Keyword</th><th>Sort order</th><th>Active</th><th></th>'
+    }</tr></thead><tbody>
+      ${items.map(item => `<tr>
+        ${_contentTab === 'partners' ? `
+          <td><b>${esc(item.name)}</b></td>
+          <td class="muted">${esc(item.website || '—')}</td>
+          <td class="muted" style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.logo_url || '—')}</td>` :
+        _contentTab === 'testimonials' ? `
+          <td style="max-width:240px"><span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">"${esc(item.quote)}"</span></td>
+          <td><b>${esc(item.name)}</b></td>
+          <td class="muted">${esc(item.company)}</td>` : `
+          <td><b>${esc(item.keyword)}</b></td>
+          <td class="muted">${item.sort_order ?? 0}</td>`}
+        <td><span class="tag" style="${item.active !== false ? 'color:var(--green-text)' : 'color:var(--red,#e55)'}">${item.active !== false ? 'Active' : 'Hidden'}</span></td>
+        <td style="white-space:nowrap;display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="contentEdit('${esc(item._id)}')">${ico("edit")} Edit</button>
+          <button class="btn btn-sm" style="color:var(--red,#e55)" onclick="contentDel('${esc(item._id)}')">${ico("trash")}</button>
+        </td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("grid")} No ${_contentTab} yet. Add one above.</div>`}`;
+}
+
+function renderContentForm() {
+  const body = $("#adm_body"); if (!body) return;
+  const items = _contentTab === 'partners' ? _partners : _contentTab === 'testimonials' ? _testimonials : _trending;
+  const item = _contentEditing === "new" ? {} : (items.find(x => x._id === _contentEditing) || {});
+  const isNew = _contentEditing === "new";
+  const label = _contentTab === 'partners' ? 'partner' : _contentTab === 'testimonials' ? 'testimonial' : 'keyword';
+
+  const fields = _contentTab === 'partners' ? `
+    <div class="field full"><label>Name <span class="req">*</span></label><input id="cf_name" value="${esc(item.name || '')}" placeholder="e.g. Asian Development Bank"></div>
+    <div class="field"><label>Website</label><input id="cf_website" value="${esc(item.website || '')}" placeholder="https://..."></div>
+    <div class="field"><label>Logo URL</label><input id="cf_logo" value="${esc(item.logo_url || '')}" placeholder="https://... (optional)"></div>
+    <div class="field"><label>Sort order</label><input id="cf_sort" type="number" value="${item.sort_order ?? 0}"></div>` :
+  _contentTab === 'testimonials' ? `
+    <div class="field full"><label>Quote <span class="req">*</span></label><textarea id="cf_quote" rows="3">${esc(item.quote || '')}</textarea></div>
+    <div class="field"><label>Name <span class="req">*</span></label><input id="cf_name" value="${esc(item.name || '')}" placeholder="e.g. Farah Aziz"></div>
+    <div class="field"><label>Company <span class="req">*</span></label><input id="cf_company" value="${esc(item.company || '')}" placeholder="e.g. KL Prime Grocers, Malaysia"></div>
+    <div class="field"><label>Initials</label><input id="cf_initials" value="${esc(item.initials || '')}" placeholder="FA (auto if blank)" maxlength="3"></div>
+    <div class="field"><label>Avatar URL</label><input id="cf_avatar" value="${esc(item.avatar_url || '')}" placeholder="https://... (optional)"></div>
+    <div class="field"><label>Sort order</label><input id="cf_sort" type="number" value="${item.sort_order ?? 0}"></div>` : `
+    <div class="field full"><label>Keyword <span class="req">*</span></label><input id="cf_keyword" value="${esc(item.keyword || '')}" placeholder="e.g. halal packaged foods"></div>
+    <div class="field"><label>Sort order</label><input id="cf_sort" type="number" value="${item.sort_order ?? 0}"></div>`;
+
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <button class="btn btn-sm" onclick="contentCancel()">${ico("arrow")} Back</button>
+      <h2 style="font-size:18px;margin:0">${isNew ? `Add ${label}` : `Edit ${label}`}</h2>
+    </div>
+    <form class="card" id="contentForm" novalidate style="margin-top:16px;display:flex;flex-direction:column;gap:14px">
+      <div class="form-grid">${fields}
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="cf_active" style="width:18px;height:18px" ${item.active !== false ? "checked" : ""}> Active (shown on Home page)
+        </label></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" id="cf_save" type="submit">${ico("rocket")} ${isNew ? "Add" : "Save"}</button>
+        <button class="btn" type="button" onclick="contentCancel()">Cancel</button>
+      </div>
+    </form>`;
+
+  $("#contentForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("#cf_save"); btn.disabled = true; btn.textContent = "Saving…";
+    let payload = { active: $("#cf_active").checked, sort_order: Number($("#cf_sort")?.value || 0) };
+    if (_contentTab === 'partners') {
+      const name = $("#cf_name").value.trim();
+      if (!name) { toast("Required", "Name is required.", false); btn.disabled = false; btn.textContent = isNew ? "Add" : "Save"; return; }
+      payload = { ...payload, name, website: $("#cf_website").value.trim() || null, logo_url: $("#cf_logo").value.trim() || null };
+    } else if (_contentTab === 'testimonials') {
+      const quote = $("#cf_quote").value.trim(), name = $("#cf_name").value.trim(), company = $("#cf_company").value.trim();
+      if (!quote || !name || !company) { toast("Required", "Quote, name and company are required.", false); btn.disabled = false; btn.textContent = isNew ? "Add" : "Save"; return; }
+      payload = { ...payload, quote, name, company, initials: $("#cf_initials").value.trim() || null, avatar_url: $("#cf_avatar").value.trim() || null };
+    } else {
+      const keyword = $("#cf_keyword").value.trim();
+      if (!keyword) { toast("Required", "Keyword is required.", false); btn.disabled = false; btn.textContent = isNew ? "Add" : "Save"; return; }
+      payload = { ...payload, keyword };
+    }
+    let ok;
+    if (_contentTab === 'partners') ok = isNew ? await _svc.createPartner(payload) : await _svc.updatePartner(item._id, payload);
+    else if (_contentTab === 'testimonials') ok = isNew ? await _svc.createTestimonial(payload) : await _svc.updateTestimonial(item._id, payload);
+    else ok = isNew ? await _svc.createTrending(payload) : await _svc.updateTrending(item._id, payload);
+    if (ok) {
+      [_partners, _testimonials, _trending] = await Promise.all([_svc.getPartners(), _svc.getTestimonials(), _svc.getTrending()]);
+      _contentEditing = null; renderContent();
+    } else { btn.disabled = false; btn.textContent = isNew ? "Add" : "Save"; }
+  };
+}
+
+export function contentTab(t) { _contentTab = t; _contentEditing = null; renderContent(); }
+export function contentNew() { _contentEditing = "new"; renderContentForm(); }
+export function contentEdit(id) { _contentEditing = id; renderContentForm(); }
+export function contentCancel() { _contentEditing = null; renderContent(); }
+export async function contentDel(id) {
+  if (!confirm("Delete this item?")) return;
+  let ok;
+  if (_contentTab === 'partners') ok = await _svc.deletePartner(id);
+  else if (_contentTab === 'testimonials') ok = await _svc.deleteTestimonial(id);
+  else ok = await _svc.deleteTrending(id);
+  if (ok) {
+    [_partners, _testimonials, _trending] = await Promise.all([_svc.getPartners(), _svc.getTestimonials(), _svc.getTrending()]);
+    renderContent();
+  }
+}
+
+/* ── Admin Members ───────────────────────────────────────────────────── */
+
+const MEMBER_STATUSES = ["live","pending","hidden"];
+const MEMBER_TIERS    = ["open","bacc","baicte"];
+const MEMBER_SECTORS  = ["Finance","Investment","Infrastructure","Resources","Trade","Opportunity"];
+const MEMBER_STATUS_COLOR = { live:"color:var(--green-text)", pending:"color:var(--gold-text)", hidden:"color:var(--text-soft)" };
+
+let _admMembers = [];
+let _admMembersLoaded = false;
+let _admMembersLoading = false;
+let _admMemberStatusFilter = "";
+let _admMemberTierFilter = "";
+let _admMemberSectorFilter = "";
+
+export async function paintAdminMembers() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admMembersLoading) return;
+  if (!_admMembersLoaded) {
+    _admMembersLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading members…</b></div></div>`;
+    _admMembers = await _svc.getMembers({ limit: 200 });
+    _admMembersLoaded = true;
+    _admMembersLoading = false;
+  }
+  if (state.ADMIN.section !== 'members') return;
+  renderAdminMembers();
+}
+
+function renderAdminMembers() {
+  const body = $("#adm_body"); if (!body) return;
+  let list = _admMembers;
+  if (_admMemberStatusFilter) list = list.filter(m => m.status === _admMemberStatusFilter);
+  if (_admMemberTierFilter)   list = list.filter(m => m.tier === _admMemberTierFilter);
+  if (_admMemberSectorFilter) list = list.filter(m => m.sector === _admMemberSectorFilter);
+
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px;flex-wrap:wrap;gap:8px">
+      <div class="muted"><b>${_admMembers.length}</b> total members · <b>${list.length}</b> shown</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select id="adm_mem_status" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)" onchange="admMembersFilter()">
+          <option value="">All statuses</option>${MEMBER_STATUSES.map(s=>`<option value="${s}" ${_admMemberStatusFilter===s?"selected":""}>${s}</option>`).join("")}
+        </select>
+        <select id="adm_mem_tier" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)" onchange="admMembersFilter()">
+          <option value="">All tiers</option>${MEMBER_TIERS.map(t=>`<option value="${t}" ${_admMemberTierFilter===t?"selected":""}>${t}</option>`).join("")}
+        </select>
+        <select id="adm_mem_sector" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)" onchange="admMembersFilter()">
+          <option value="">All sectors</option>${MEMBER_SECTORS.map(s=>`<option value="${s}" ${_admMemberSectorFilter===s?"selected":""}>${s}</option>`).join("")}
+        </select>
+        <button class="btn btn-sm" onclick="_admMembersLoaded=false;paintAdminMembers()">${ico("refresh")} Refresh</button>
+      </div>
+    </div>
+    ${list.length ? `<div class="atbl-wrap" style="margin-top:12px"><table class="atbl"><thead><tr><th>Company</th><th>Contact</th><th>Sector</th><th>Status</th><th>Tier</th><th>Verified</th><th>Sponsored</th></tr></thead><tbody>
+      ${list.map(m => `<tr>
+        <td><b>${esc(m.company_name||"")}</b><div class="muted" style="font-size:11px">${esc(m.country_name||"")}</div></td>
+        <td class="muted" style="font-size:13px">${esc(m.contact_person||"")}${m.email?`<br><span style="user-select:all">${esc(m.email)}</span>`:""}</td>
+        <td class="muted">${esc(m.sector||"")}</td>
+        <td><select class="adm-mem-status" data-id="${esc(m._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${MEMBER_STATUS_COLOR[m.status]||""}">
+          ${MEMBER_STATUSES.map(s=>`<option value="${s}" ${m.status===s?"selected":""}>${s}</option>`).join("")}
+        </select></td>
+        <td><select class="adm-mem-tier" data-id="${esc(m._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)">
+          ${MEMBER_TIERS.map(t=>`<option value="${t}" ${m.tier===t?"selected":""}>${t}</option>`).join("")}
+        </select></td>
+        <td><input type="checkbox" class="adm-mem-verified" data-id="${esc(m._id)}" ${m.is_verified?"checked":""} title="Verified"></td>
+        <td><input type="checkbox" class="adm-mem-sponsored" data-id="${esc(m._id)}" ${m.is_sponsored?"checked":""} title="Sponsored"></td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("users")} No members match the current filters.</div>`}`;
+
+  const patchMember = async (id, patch) => {
+    const ok = await _svc.updateMember(id, patch);
+    if (ok) { const m = _admMembers.find(x=>x._id===id); if (m) Object.assign(m, patch); }
+  };
+  $$(".adm-mem-status").forEach(sel => { sel.onchange = () => patchMember(sel.dataset.id, { status: sel.value }).then(() => { sel.style.cssText = `font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${MEMBER_STATUS_COLOR[sel.value]||""}`; }); });
+  $$(".adm-mem-tier").forEach(sel => { sel.onchange = () => patchMember(sel.dataset.id, { tier: sel.value }); });
+  $$(".adm-mem-verified").forEach(cb => { cb.onchange = () => patchMember(cb.dataset.id, { is_verified: cb.checked }); });
+  $$(".adm-mem-sponsored").forEach(cb => { cb.onchange = () => patchMember(cb.dataset.id, { is_sponsored: cb.checked }); });
+}
+
+export function admMembersFilter() {
+  _admMemberStatusFilter = $("#adm_mem_status")?.value || "";
+  _admMemberTierFilter   = $("#adm_mem_tier")?.value   || "";
+  _admMemberSectorFilter = $("#adm_mem_sector")?.value || "";
+  renderAdminMembers();
+}
+
+/* ── Admin Users ─────────────────────────────────────────────────────── */
+
+let _admUsers = [];
+let _admUsersLoaded = false;
+let _admUsersLoading = false;
+
+export async function paintAdminUsers() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admUsersLoading) return;
+  if (!_admUsersLoaded) {
+    _admUsersLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading users…</b></div></div>`;
+    _admUsers = await _svc.getUsers({ limit: 200 });
+    _admUsersLoaded = true;
+    _admUsersLoading = false;
+  }
+  if (state.ADMIN.section !== 'users') return;
+  renderAdminUsers();
+}
+
+function renderAdminUsers() {
+  const body = $("#adm_body"); if (!body) return;
+  const myUid = (() => { try { const t = localStorage.getItem("wta_token"); if (!t) return null; const p = t.split(".")[1]; return JSON.parse(atob(p)).uid; } catch { return null; } })();
+
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px">
+      <div class="muted"><b>${_admUsers.length}</b> users</div>
+      <button class="btn btn-sm" onclick="_admUsersLoaded=false;paintAdminUsers()">${ico("refresh")} Refresh</button>
+    </div>
+    ${_admUsers.length ? `<div class="atbl-wrap" style="margin-top:12px"><table class="atbl"><thead><tr><th>Email</th><th>Name</th><th>Created</th><th>Role</th></tr></thead><tbody>
+      ${_admUsers.map(u => {
+        const isSelf = u._id === myUid || u.id === myUid;
+        return `<tr ${isSelf?"style=\"background:var(--blue-soft,#e8f0fe)10\"":" "}>
+          <td style="user-select:all;font-size:13px">${esc(u.email||"")}</td>
+          <td>${esc(u.name||u.full_name||"")}</td>
+          <td class="muted" style="font-size:12px;white-space:nowrap">${esc(fmtDate(u.createdAt||u.created_at))}</td>
+          <td>${isSelf
+            ? `<span class="tag" title="You cannot change your own role">${esc(u.role||"member")}</span>`
+            : `<select class="adm-user-role" data-id="${esc(u._id||u.id||"")}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)">
+                <option value="member" ${u.role==="member"?"selected":""}>member</option>
+                <option value="admin"  ${u.role==="admin" ?"selected":""}>admin</option>
+              </select>`
+          }</td>
+        </tr>`;
+      }).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("user")} No users found.</div>`}`;
+
+  $$(".adm-user-role").forEach(sel => {
+    sel.onchange = async () => {
+      const id = sel.dataset.id;
+      const ok = await _svc.updateUserRole(id, sel.value);
+      if (ok) { const u = _admUsers.find(x=>(x._id||x.id)===id); if (u) u.role = sel.value; }
+    };
+  });
+}
+
+/* ── Admin Subscribers ───────────────────────────────────────────────── */
+
+let _admSubs = [];
+let _admSubsLoaded = false;
+let _admSubsLoading = false;
+let _admSubsTypeFilter = "";
+
+export async function paintAdminSubscribers() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admSubsLoading) return;
+  if (!_admSubsLoaded) {
+    _admSubsLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading subscribers…</b></div></div>`;
+    _admSubs = await _svc.getSubscriptions({ limit: 500 });
+    _admSubsLoaded = true;
+    _admSubsLoading = false;
+  }
+  if (state.ADMIN.section !== 'subscribers') return;
+  renderAdminSubscribers();
+}
+
+function renderAdminSubscribers() {
+  const body = $("#adm_body"); if (!body) return;
+  const list = _admSubsTypeFilter ? _admSubs.filter(s=>s.type===_admSubsTypeFilter) : _admSubs;
+  const alerts = _admSubs.filter(s=>s.type==="alerts").length;
+  const newsletter = _admSubs.filter(s=>s.type==="newsletter").length;
+
+  body.innerHTML = `
+    <div class="astat" style="margin-top:16px">
+      <button class="kpi" aria-pressed="${_admSubsTypeFilter===''}" onclick="admSubsFilter('')"><span class="ki">${ico("bell")}</span><div><div class="n">${_admSubs.length}</div><div class="l">All</div></div></button>
+      <button class="kpi" aria-pressed="${_admSubsTypeFilter==='alerts'}" onclick="admSubsFilter('alerts')"><span class="ki" style="color:var(--blue-text)">${ico("bell")}</span><div><div class="n">${alerts}</div><div class="l">News alerts</div></div></button>
+      <button class="kpi" aria-pressed="${_admSubsTypeFilter==='newsletter'}" onclick="admSubsFilter('newsletter')"><span class="ki" style="color:var(--gold-text)">${ico("send")}</span><div><div class="n">${newsletter}</div><div class="l">Newsletter</div></div></button>
+    </div>
+    <div class="top" style="margin-top:12px">
+      <div class="muted"><b>${list.length}</b> subscriber${list.length===1?"":"s"}</div>
+      <button class="btn btn-sm" onclick="_admSubsLoaded=false;paintAdminSubscribers()">${ico("refresh")} Refresh</button>
+    </div>
+    ${list.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Email</th><th>Type</th><th>Topics</th><th>Date</th><th></th></tr></thead><tbody>
+      ${list.map(s => `<tr>
+        <td style="user-select:all">${esc(s.email||"")}</td>
+        <td><span class="tag">${esc(s.type||"")}</span></td>
+        <td class="muted" style="font-size:12px">${(s.topics||[]).join(", ")||"—"}</td>
+        <td class="muted" style="font-size:12px;white-space:nowrap">${esc(fmtDate(s.createdAt))}</td>
+        <td><button class="btn btn-sm" style="color:var(--red,#e55)" onclick="admSubsDel('${esc(s._id)}')">${ico("trash")}</button></td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("bell")} No subscribers yet.</div>`}`;
+}
+
+export function admSubsFilter(t) { _admSubsTypeFilter = t; renderAdminSubscribers(); }
+export async function admSubsDel(id) {
+  if (!confirm("Remove this subscriber?")) return;
+  const ok = await _svc.deleteSubscription(id);
+  if (ok) { _admSubs = _admSubs.filter(s=>s._id!==id); renderAdminSubscribers(); }
+}
+
+/* ── Admin Contact ───────────────────────────────────────────────────── */
+
+const CONTACT_STATUSES = ["new","read","replied"];
+const CONTACT_STATUS_COLOR = { new:"color:var(--blue-text)", read:"color:var(--text-soft)", replied:"color:var(--green-text)" };
+
+let _admContact = [];
+let _admContactLoaded = false;
+let _admContactLoading = false;
+let _admContactStatusFilter = "";
+
+export async function paintAdminContact() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admContactLoading) return;
+  if (!_admContactLoaded) {
+    _admContactLoading = true;
+    body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading messages…</b></div></div>`;
+    _admContact = await _svc.getContactMessages({ limit: 200 });
+    _admContactLoaded = true;
+    _admContactLoading = false;
+  }
+  if (state.ADMIN.section !== 'contact') return;
+  renderAdminContact();
+}
+
+function renderAdminContact() {
+  const body = $("#adm_body"); if (!body) return;
+  const list = _admContactStatusFilter ? _admContact.filter(c=>c.status===_admContactStatusFilter) : _admContact;
+  const counts = {};
+  CONTACT_STATUSES.forEach(s=>counts[s]=_admContact.filter(c=>c.status===s).length);
+
+  body.innerHTML = `
+    <div class="astat" style="margin-top:16px">
+      <button class="kpi" aria-pressed="${_admContactStatusFilter===''}" onclick="admContactFilter('')"><span class="ki">${ico("send")}</span><div><div class="n">${_admContact.length}</div><div class="l">All</div></div></button>
+      ${CONTACT_STATUSES.map(s=>`<button class="kpi" aria-pressed="${_admContactStatusFilter===s}" onclick="admContactFilter('${s}')"><span class="ki" style="${CONTACT_STATUS_COLOR[s]||""}">${ico(s==="new"?"inbox":s==="read"?"check":"send")}</span><div><div class="n">${counts[s]||0}</div><div class="l">${s.charAt(0).toUpperCase()+s.slice(1)}</div></div></button>`).join("")}
+    </div>
+    <div class="top" style="margin-top:12px">
+      <div class="muted"><b>${list.length}</b> message${list.length===1?"":"s"}</div>
+      <button class="btn btn-sm" onclick="_admContactLoaded=false;paintAdminContact()">${ico("refresh")} Refresh</button>
+    </div>
+    ${list.length ? `<div class="atbl-wrap"><table class="atbl"><thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Status</th></tr></thead><tbody>
+      ${list.map(c => `<tr>
+        <td class="muted" style="font-size:12px;white-space:nowrap">${esc(fmtDate(c.createdAt))}</td>
+        <td><b>${esc(c.name||"")}</b></td>
+        <td style="user-select:all;font-size:13px">${esc(c.email||"")}</td>
+        <td class="muted" style="font-size:13px">${esc(c.subject||"")}</td>
+        <td class="muted" style="font-size:13px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(c.message||"")}">${esc(c.message||"—")}</td>
+        <td><select class="adm-contact-status" data-id="${esc(c._id)}" style="font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${CONTACT_STATUS_COLOR[c.status]||""}">
+          ${CONTACT_STATUSES.map(s=>`<option value="${s}" ${c.status===s?"selected":""}>${s}</option>`).join("")}
+        </select></td>
+      </tr>`).join("")}
+    </tbody></table></div>`
+    : `<div class="empty" style="margin-top:24px">${ico("send")} No contact messages ${_admContactStatusFilter?"with that status":""} yet.</div>`}`;
+
+  $$(".adm-contact-status").forEach(sel => {
+    sel.onchange = async () => {
+      const id = sel.dataset.id;
+      const ok = await _svc.updateContactStatus(id, sel.value);
+      if (ok) {
+        const m = _admContact.find(c=>c._id===id);
+        if (m) m.status = sel.value;
+        sel.style.cssText = `font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);${CONTACT_STATUS_COLOR[sel.value]||""}`;
+      }
+    };
+  });
+}
+
+export function admContactFilter(s) { _admContactStatusFilter = s; renderAdminContact(); }
 
 /* inline handlers in the markup call these by name */
 

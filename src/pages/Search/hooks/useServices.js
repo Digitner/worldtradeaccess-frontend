@@ -1,9 +1,12 @@
 ﻿import APIRequest from "../../../utils/APIRequest.js";
 import ConfigAPIURL from "../../../config/ConfigAPIURL.js";
-import useAlert from "../../../hooks/useAlert.js";
+import { toast } from "../../../components/Toasts/toast.js";
 
 function useServices() {
-  const { publishNotification } = useAlert();
+  const publishNotification = (msg, type) => {
+    const good = type !== "error";
+    toast(type === "error" ? "Error" : "Notice", msg, good);
+  };
 
   const runMatch = async ({ goal, seek, intent }) => {
     try {

@@ -1,10 +1,8 @@
 ﻿import APIRequest from "../../../utils/APIRequest.js";
 import ConfigAPIURL from "../../../config/ConfigAPIURL.js";
 import LocalStorage from "../../../config/LocalStorage.js";
-import useAlert from "../../../hooks/useAlert.js";
 
 function useServices() {
-  const { publishNotification } = useAlert();
 
   const getDashboard = async () => {
     try {
@@ -67,6 +65,17 @@ function useServices() {
     }
   };
 
+  const getInboundDeals = async () => {
+    try {
+      const response = await APIRequest.request("GET", ConfigAPIURL.myInboundDeals, "");
+      const d = response?.data;
+      if (d?.responseCode === 100) return d.result || d.deals || [];
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
   const getOpportunities = async () => {
     try {
       const response = await APIRequest.request("GET", ConfigAPIURL.members + "?limit=10", "");
@@ -78,7 +87,7 @@ function useServices() {
     }
   };
 
-  return { getDashboard, getMe, getMyIntros, getMyFunding, getMyDeals, getOpportunities };
+  return { getDashboard, getMe, getMyIntros, getMyFunding, getMyDeals, getInboundDeals, getOpportunities };
 }
 
 export default useServices;
