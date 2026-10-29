@@ -13,54 +13,107 @@ export function viewLogin(app, note) {
     <h1 class="page-h">Log in.</h1>
     <p class="page-sub" ${note ? 'style="color:var(--gold-text)"' : ""}>${esc(note || "Access your dashboard, listings and matches.")}</p>
     <form class="card" style="margin-top:20px" id="loginForm" novalidate>
-      <div class="field" style="margin-bottom:16px">
+      <div class="field" id="step_email_wrap">
         <label for="l_email">${ico("mail")}Email <span class="req">*</span></label>
-        <input id="l_email" type="email" placeholder="you@company.com" value="${esc(state.USER ? state.USER.email || "" : "")}">
+        <input id="l_email" type="email" placeholder="you@company.com" autocomplete="email" value="${esc(state.USER ? state.USER.email || "" : "")}">
         <div class="err-msg">Enter your email, like name@company.com</div>
       </div>
-      <div class="field">
-        <label for="l_pass">${ico("lock")}Password <span class="req">*</span></label>
-        <input id="l_pass" type="password" placeholder="Your password">
-        <div class="err-msg">Enter your password</div>
+      <div id="step_otp_wrap" style="display:none">
+        <div class="field" style="margin-bottom:8px">
+          <label for="l_otp">${ico("lock")}One-time code <span class="req">*</span></label>
+          <input id="l_otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+          <div class="err-msg">Enter the 6-digit code sent to your email</div>
+        </div>
+        <div id="l_dev_hint" style="display:none;padding:8px 12px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;margin-bottom:8px"></div>
+        <p style="font-size:13px;color:var(--text-soft);margin:0 0 8px">
+          Check your inbox for a 6-digit code. Valid for 10 minutes.
+          <button type="button" class="linkish" id="resendOtpBtn" style="font-size:13px">Resend</button>
+        </p>
       </div>
-      <p style="text-align:right;margin:6px 0 0">
-        <button type="button" class="linkish" onclick="go('#/forgot-password')">Forgot password?</button>
-      </p>
-      <button class="btn btn-primary btn-block" id="loginBtn" type="submit" style="margin-top:20px">${ico("login")} Log in</button>
+      <button class="btn btn-primary btn-block" id="loginBtn" type="submit" style="margin-top:20px">${ico("mail")} Send code</button>
       <p class="muted" style="text-align:center;margin-top:12px">No account yet? <button type="button" class="linkish" onclick="go('#/register')">Become a member</button></p>
     </form>
   </div></section>`;
 
-  const { login } = useServices();
+  const { sendOtp, verifyOtp, getMe } = useServices();
+  let step = "email"; // "email" | "otp"
+  let pendingEmail = "";
+
+  const setStep = (s) => {
+    step = s;
+    const isOtp = s === "otp";
+    $("#step_otp_wrap").style.display = isOtp ? "" : "none";
+    const btn = $("#loginBtn");
+    btn.innerHTML = isOtp ? `${ico("check")} Verify &amp; log in` : `${ico("mail")} Send code`;
+  };
+
+  const showDevHint = (hint) => {
+    if (!hint) return;
+    const el = $("#l_dev_hint");
+    el.style.display = "";
+    el.innerHTML = `<strong style="color:var(--gold-text)">Dev hint:</strong> ${esc(hint)}`;
+  };
+
+  $("#resendOtpBtn").onclick = async () => {
+    const btn = $("#resendOtpBtn");
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+    const res = await sendOtp(pendingEmail);
+    if (res) {
+      toast("Code sent", "A new OTP has been sent to your email.");
+      showDevHint(res.dev_hint);
+    }
+    btn.disabled = false;
+    btn.textContent = "Resend";
+  };
 
   $("#loginForm").onsubmit = async (e) => {
     e.preventDefault();
-    if (!reqField("l_email", isEmail)) return;
-    if (!reqField("l_pass")) return;
-
-    const email = $("#l_email").value.trim();
-    const password = $("#l_pass").value;
     const btn = $("#loginBtn");
-    btn.disabled = true;
-    btn.textContent = "Logging in…";
 
-    const user = await login({ email, password });
-    if (user) {
-      state.USER = user;
+    if (step === "email") {
+      if (!reqField("l_email", isEmail)) return;
+      pendingEmail = $("#l_email").value.trim();
+      btn.disabled = true;
+      btn.textContent = "Sending code…";
+      const res = await sendOtp(pendingEmail);
+      if (res) {
+        showDevHint(res.dev_hint);
+        setStep("otp");
+        setTimeout(() => $("#l_otp")?.focus(), 50);
+      }
+      btn.disabled = false;
+      btn.innerHTML = `${ico("check")} Verify &amp; log in`;
+      return;
+    }
+
+    // step === "otp"
+    if (!reqField("l_otp")) return;
+    const otp = $("#l_otp").value.trim();
+    btn.disabled = true;
+    btn.textContent = "Verifying…";
+
+    const result = await verifyOtp(pendingEmail, otp);
+    if (result?.needs_profile) {
+      // New user — send them to register to fill in profile
+      toast("Almost there", "Please complete your profile to finish signing up.");
+      go(`#/register?email=${encodeURIComponent(pendingEmail)}&otp=${encodeURIComponent(otp)}`);
+      return;
+    }
+    if (result?.user) {
+      state.USER = result.user;
+      const full = await getMe();
+      if (full) state.USER = full;
       toast("Logged in", "Welcome back.");
       go("#/dashboard");
     } else {
       btn.disabled = false;
-      btn.innerHTML = `${ico("login")} Log in`;
+      btn.innerHTML = `${ico("check")} Verify &amp; log in`;
     }
   };
 }
 
 export function logout() {
-  import('./hooks/useServices.js').then(({ default: svc }) => {
-    const { publishNotification } = { publishNotification: () => {} };
-  });
-  // Fire logout API (best-effort, don't block UI)
   import('../../utils/APIRequest.js').then(({ default: APIRequest }) => {
     import('../../config/ConfigAPIURL.js').then(({ default: ConfigAPIURL }) => {
       APIRequest.request("POST", ConfigAPIURL.logout, "").catch(() => {});

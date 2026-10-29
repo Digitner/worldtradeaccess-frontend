@@ -5,26 +5,46 @@ import ConfigAPIURL from '../../../config/ConfigAPIURL.js';
 import LocalStorage from '../../../config/LocalStorage.js';
 
 function useServices() {
-  const register = async (formData) => {
+  const sendOtp = async (email) => {
     try {
       const response = await APIRequest.request(
         "POST",
-        ConfigAPIURL.register,
-        JSON.stringify(formData)
+        ConfigAPIURL.sendOtp,
+        JSON.stringify({ email })
       );
       const d = response?.data;
-      if (d?.responseCode === 100 ) {
+      if (d?.responseCode === 100) {
+        return { ok: true, dev_hint: d.dev_hint || null };
+      }
+      toast("Failed", d?.message || "Could not send OTP. Try again.", false);
+      return null;
+    } catch {
+      toast("Error", "Unable to send OTP. Please try again.", false);
+      return null;
+    }
+  };
+
+  const verifyOtpAndRegister = async (email, otp, profileData) => {
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        ConfigAPIURL.verifyOtp,
+        JSON.stringify({ email, otp, ...profileData })
+      );
+      const d = response?.data;
+      // HTTP 202: still needs profile (shouldn't happen when profileData is passed, but handle gracefully)
+      if (response?.status === 202 || d?.needs_profile) {
+        return { needs_profile: true };
+      }
+      if (d?.responseCode === 100) {
         const token = d.accessToken || d.token;
         if (token) localStorage.setItem("wta_token", token);
-        const user = d.user || d.result;
-        if (user) LocalStorage.setUser(user);
-        toast("Welcome", "Your account is ready. Welcome to WorldTradeAccess!", true);
-        return user || true;
-      } else if (d?.responseCode === 601) {
-        toast("Already registered", "That email is already registered. Log in instead.", false);
-        return null;
+        if (d.refreshToken) localStorage.setItem("wta_refresh", d.refreshToken);
+        const user = { ...(d.member || {}), ...(d.user || d.result || {}) };
+        LocalStorage.setUser(user);
+        return { user };
       }
-      toast("Registration failed", d?.message || "Check the form and try again.", false);
+      toast("Failed", d?.message || "Could not complete registration.", false);
       return null;
     } catch {
       toast("Error", "Unable to register. Please try again.", false);
@@ -48,9 +68,7 @@ function useServices() {
     } catch { return null; }
   };
 
-  return { register, uploadImage };
+  return { sendOtp, verifyOtpAndRegister, uploadImage };
 }
 
 export default useServices;
-
-

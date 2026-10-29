@@ -14,6 +14,8 @@ class ConfigAPIURL {
   static resetPassword    = `${this.baseUrl}/api/auth/reset-password`;
   static verifyEmail      = `${this.baseUrl}/api/auth/verify-email`;
   static refreshToken     = `${this.baseUrl}/api/auth/refresh`;
+  static sendOtp          = `${this.baseUrl}/api/auth/send-otp`;
+  static verifyOtp        = `${this.baseUrl}/api/auth/verify-otp`;
 
   // Me (member self)
   static me               = `${this.baseUrl}/api/me`;

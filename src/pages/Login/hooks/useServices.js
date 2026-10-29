@@ -5,24 +5,49 @@ import ConfigAPIURL from '../../../config/ConfigAPIURL.js';
 import LocalStorage from '../../../config/LocalStorage.js';
 
 function useServices() {
-  const login = async ({ email, password }) => {
+  const sendOtp = async (email) => {
     try {
       const response = await APIRequest.request(
         "POST",
-        ConfigAPIURL.login,
-        JSON.stringify({ email, password })
+        ConfigAPIURL.sendOtp,
+        JSON.stringify({ email })
       );
       const d = response?.data;
-      if (d?.responseCode === 100 ) {
-        const token = d.accessToken || d.token;
-        localStorage.setItem("wta_token", token);
-        const me = await getMe();
-        return me;
+      if (d?.responseCode === 100) {
+        return { ok: true, dev_hint: d.dev_hint || null };
       }
-      toast("Login failed", d?.message || "Wrong email or password.", false);
+      toast("Failed", d?.message || "Could not send OTP. Try again.", false);
       return null;
     } catch {
-      toast("Error", "Unable to log in. Please try again.", false);
+      toast("Error", "Unable to send OTP. Please try again.", false);
+      return null;
+    }
+  };
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        ConfigAPIURL.verifyOtp,
+        JSON.stringify({ email, otp })
+      );
+      const d = response?.data;
+      // HTTP 202: new user who needs a profile — signal caller
+      if (response?.status === 202 || d?.needs_profile) {
+        return { needs_profile: true, otp_verified: true };
+      }
+      if (d?.responseCode === 100) {
+        const token = d.accessToken || d.token;
+        if (token) localStorage.setItem("wta_token", token);
+        if (d.refreshToken) localStorage.setItem("wta_refresh", d.refreshToken);
+        const user = { ...(d.member || {}), ...(d.user || d.result || {}) };
+        LocalStorage.setUser(user);
+        return { user };
+      }
+      toast("Invalid OTP", d?.message || "Wrong or expired code.", false);
+      return null;
+    } catch {
+      toast("Error", "Unable to verify OTP. Please try again.", false);
       return null;
     }
   };
@@ -30,7 +55,7 @@ function useServices() {
   const getMe = async () => {
     const response = await APIRequest.request("GET", ConfigAPIURL.me, "");
     const d = response?.data;
-    if (d?.responseCode === 100 ) {
+    if (d?.responseCode === 100) {
       const user = { ...(d.member || {}), ...(d.user || d.result || {}) };
       LocalStorage.setUser(user);
       return user;
@@ -38,9 +63,7 @@ function useServices() {
     return null;
   };
 
-  return { login, getMe };
+  return { sendOtp, verifyOtp, getMe };
 }
 
 export default useServices;
-
-
