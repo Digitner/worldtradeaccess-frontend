@@ -42,7 +42,6 @@ export function viewRegister(app) {
           <input id="r_otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" value="${preOtp}">
           <div class="err-msg">Enter the 6-digit code sent to your email</div>
         </div>
-        <div id="r_dev_hint" style="display:none;padding:8px 12px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;margin-bottom:8px"></div>
         <p style="font-size:13px;color:var(--text-soft);margin:0 0 8px">
           Check your inbox for a 6-digit code. Valid for 10 minutes.
           <button type="button" class="linkish" id="resendOtpBtn" style="font-size:13px">Resend</button>
@@ -104,12 +103,7 @@ export function viewRegister(app) {
     if (s === "profile") btn.innerHTML = `${ico("check")} Create account &amp; publish listing`;
   };
 
-  const showDevHint = (hint) => {
-    if (!hint) return;
-    const el = $("#r_dev_hint");
-    el.style.display = "";
-    el.innerHTML = `<strong style="color:var(--gold-text)">Dev hint:</strong> ${hint}`;
-  };
+  const showDevHint = () => {}; // hint visible in server console only
 
   // Wire tier + goal pickers
   $("#tiers").onclick = e => {
