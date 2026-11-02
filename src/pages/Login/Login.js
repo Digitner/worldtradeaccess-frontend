@@ -99,7 +99,7 @@ export function viewLogin(app, note) {
       const full = await getMe();
       if (full) state.USER = full;
       toast("Logged in", "Welcome back.");
-      go("#/dashboard");
+      go(state.USER?.role === "admin" ? "#/admin" : "#/dashboard");
     } else {
       btn.disabled = false;
       btn.innerHTML = `${ico("check")} Verify &amp; log in`;
