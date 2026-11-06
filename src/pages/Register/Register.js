@@ -32,6 +32,7 @@ export function viewRegister(app) {
           <label for="r_email">${ico("mail")}Email <span class="req">*</span></label>
           <input id="r_email" type="email" placeholder="you@company.com" autocomplete="email" value="${preEmail}">
           <div class="err-msg">Enter a valid email, like name@company.com</div>
+          <div class="err-msg" id="r_emailTaken" role="alert">This email is already registered. <button type="button" class="linkish" onclick="go('#/login')">Log in</button> instead.</div>
         </div>
       </div>
 
@@ -64,11 +65,11 @@ export function viewRegister(app) {
         <div class="flabel" style="margin-bottom:10px">${ico("shield")}Membership type <span class="req">*</span></div>
         <div class="choice-cards" id="tiers">${Object.entries(TIERS).map(([k, v]) => `<button type="button" class="choice" data-tier="${k}" aria-pressed="${k === tier}"><span class="t">${ico(v.ic)}${v.t}</span><span class="d" style="display:block">${v.d}</span></button>`).join("")}</div>
         <div class="form-grid" style="margin-top:22px">
-          <div class="field"><label for="f_name">${ico("building")}Company name <span class="req">*</span></label><input id="f_name" placeholder="e.g. Malabar Spice Exports"><div class="err-msg">Enter your company name</div></div>
-          <div class="field"><label for="f_site">${ico("globe")}Website</label><input id="f_site" placeholder="company.com"></div>
+          <div class="field"><label for="f_name">${ico("building")}Company name <span class="req">*</span></label><input id="f_name" placeholder="e.g. Malabar Spice Exports"><div class="err-msg">Enter your company name</div><div class="err-msg" id="f_name_dup" role="alert">This company name is already registered.</div></div>
+          <div class="field"><label for="f_site">${ico("globe")}Website</label><input id="f_site" placeholder="company.com"><div class="err-msg" id="f_site_dup" role="alert">This website is already registered.</div></div>
           <div class="field"><label for="f_person">${ico("user")}Contact person <span class="req">*</span></label><input id="f_person" placeholder="Full name"><div class="err-msg">Enter a contact name</div></div>
           <div class="field"><label for="f_role">${ico("briefcase")}Designation</label><input id="f_role" placeholder="e.g. Export Director"></div>
-          <div class="field"><label for="f_phone">${ico("phone")}Phone</label><input id="f_phone" placeholder="+60 12 345 6789"></div>
+          <div class="field"><label for="f_phone">${ico("phone")}Phone</label><input id="f_phone" placeholder="+60 12 345 6789"><div class="err-msg" id="f_phone_dup" role="alert">This phone number is already registered.</div></div>
           <div class="field"><label for="f_country">${ico("pin")}Country <span class="req">*</span></label><select id="f_country">${COUNTRIES.map(([c]) => `<option value="${c}">${c}</option>`).join("")}</select></div>
           <div class="field"><label for="f_pillar">${ico("grid")}Sector <span class="req">*</span></label><select id="f_pillar">${PILLARS.map(p => `<option>${p}</option>`).join("")}</select></div>
         </div>
@@ -82,6 +83,7 @@ export function viewRegister(app) {
           <div style="display:flex;justify-content:space-between;gap:10px"><span class="hint">The matcher reads this intent line.</span><span class="wordcount" id="seekwc">0 words</span></div>
           <div class="err-msg">Describe what you're looking for</div>
         </div>
+        <div class="err-msg" id="dupCompanyAlert" role="alert" style="margin-top:14px;font-size:13.5px"><span id="dupAlertText">Already registered.</span> <button type="button" class="linkish" style="font-size:13.5px" onclick="go('#/login')">Log in</button> if this is your business.</div>
       </div>
 
       <button class="btn btn-primary btn-block" id="regBtn" type="submit" style="margin-top:20px">${ico("mail")} Send code</button>
@@ -89,7 +91,7 @@ export function viewRegister(app) {
     </form>
   </div></section>`;
 
-  const { sendOtp, verifyOtpAndRegister, uploadImage } = useServices();
+  const { sendOtp, verifyOtpAndRegister, uploadImage, checkDuplicate } = useServices();
   let pendingEmail = preEmail;
 
   const setStep = (s) => {
@@ -147,6 +149,51 @@ export function viewRegister(app) {
     }
   };
 
+  // "Already registered" flags (any membership type). Company name, website and phone are checked live on the
+  // profile step, each on its own; email is checked at step 1, before any code is sent. Every taken field gets
+  // a red border and its own message, plus a summary line below the intent hint. Stale replies are dropped.
+  const DUP_FIELDS = { company: ["f_name", "Company name"], website: ["f_site", "Website"], phone: ["f_phone", "Phone"] };
+  let dupSeq = 0, dupTimer = null;
+  const setDupAlert = (taken) => {
+    const list = Object.keys(DUP_FIELDS).filter((k) => taken.includes(k));
+    for (const [k, [id]] of Object.entries(DUP_FIELDS)) {
+      const on = list.includes(k);
+      $("#" + id)?.classList.toggle("err", on);
+      $("#" + id + "_dup")?.classList.toggle("show", on);
+    }
+    const labels = list.map((k) => DUP_FIELDS[k][1]);
+    $("#dupAlertText").textContent = labels.length
+      ? labels.join(", ") + (labels.length > 1 ? " are" : " is") + " already registered by another member."
+      : "";
+    $("#dupCompanyAlert")?.classList.toggle("show", labels.length > 0);
+  };
+  const dupMessage = (taken) => taken.map((k) => (DUP_FIELDS[k] || [0, "Email"])[1]).join(", ") + " already registered.";
+  const setEmailTaken = (on) => {
+    $("#r_emailTaken")?.classList.toggle("show", !!on);
+    $("#r_email")?.classList.toggle("err", !!on);
+  };
+  const runDupCheck = async () => {
+    const seq = ++dupSeq;
+    const r = await checkDuplicate({ name: $("#f_name").value, website: $("#f_site").value, phone: $("#f_phone").value });
+    const taken = Object.keys(DUP_FIELDS).filter((k) => r[k]);
+    if (seq === dupSeq) setDupAlert(taken);
+    return taken;
+  };
+  const wireDupCheck = () => {
+    Object.values(DUP_FIELDS).forEach(([id]) => {
+      const el = $("#" + id);
+      if (!el) return;
+      el.oninput = () => {
+        clearTimeout(dupTimer);
+        el.classList.remove("err");
+        $("#" + id + "_dup")?.classList.remove("show");
+        dupTimer = setTimeout(runDupCheck, 450);
+      };
+      el.onblur = () => { clearTimeout(dupTimer); runDupCheck(); };
+    });
+  };
+  $("#r_email").oninput = () => setEmailTaken(false);
+
   $("#resendOtpBtn").onclick = async () => {
     const btn = $("#resendOtpBtn");
     btn.disabled = true;
@@ -164,6 +211,7 @@ export function viewRegister(app) {
   if (autoAdvance) {
     setStep("profile");
     wireGoals();
+    wireDupCheck();
   }
 
   $("#regForm").onsubmit = async (e) => {
@@ -175,6 +223,16 @@ export function viewRegister(app) {
       if (!reqField("r_email", isEmail)) return;
       pendingEmail = $("#r_email").value.trim();
       btn.disabled = true;
+      btn.textContent = "Checking email…";
+      // Already registered? Flag it here, before a code is sent (a code would just log them in).
+      const { email: emailTaken } = await checkDuplicate({ email: pendingEmail });
+      if (emailTaken) {
+        setEmailTaken(true);
+        $("#r_email").focus();
+        btn.disabled = false;
+        btn.innerHTML = `${ico("mail")} Send code`;
+        return;
+      }
       btn.textContent = "Sending code…";
       const res = await sendOtp(pendingEmail);
       if (res) {
@@ -183,7 +241,7 @@ export function viewRegister(app) {
         setTimeout(() => $("#r_otp")?.focus(), 50);
       }
       btn.disabled = false;
-      btn.innerHTML = `${ico("arrow-right")} Continue`;
+      btn.innerHTML = res ? `${ico("arrow-right")} Continue` : `${ico("mail")} Send code`;
       return;
     }
 
@@ -196,15 +254,27 @@ export function viewRegister(app) {
 
       // Quick verify (no profile data) to confirm OTP before showing long form
       const result = await verifyOtpAndRegister(pendingEmail, otp, {});
-      if (result?.needs_profile || result?.user) {
-        // OTP valid — show profile form
-        // Store otp so final submit can use it
+      if (result?.user) {
+        // This email already has a listing - the server just treated the code as a login. Undo that and
+        // flag it instead of showing a profile form whose submit would fail on the spent code.
+        const { default: LocalStorage } = await import('../../config/LocalStorage.js');
+        LocalStorage.clear();
+        state.USER = null;
+        setStep("email");
+        setEmailTaken(true);
+        $("#r_otp").value = "";
+        btn.disabled = false;
+        return;
+      }
+      if (result?.needs_profile) {
+        // OTP valid - show profile form. Store otp so final submit can use it
         $("#r_otp").dataset.verified = otp;
         setStep("profile");
         wireGoals();
+        wireDupCheck();
       }
       btn.disabled = false;
-      btn.innerHTML = `${ico("check")} Create account &amp; publish listing`;
+      btn.innerHTML = result?.needs_profile ? `${ico("check")} Create account &amp; publish listing` : `${ico("arrow-right")} Continue`;
       return;
     }
 
@@ -213,6 +283,16 @@ export function viewRegister(app) {
     if (!ok) { toast("Check the form", "A few required fields need attention.", false); return; }
 
     btn.disabled = true;
+    btn.textContent = "Checking details…";
+    clearTimeout(dupTimer);
+    const takenNow = await runDupCheck();
+    if (takenNow.length) {
+      btn.disabled = false;
+      btn.innerHTML = `${ico("check")} Create account &amp; publish listing`;
+      $("#" + DUP_FIELDS[takenNow[0]][0]).focus();
+      toast("Already registered", dupMessage(takenNow), false);
+      return;
+    }
     btn.textContent = "Creating account…";
 
     const verifiedOtp = preOtp || $("#r_otp")?.dataset?.verified || "";
@@ -247,6 +327,13 @@ export function viewRegister(app) {
       }
       toast("Welcome to WorldTradeAccess", "Your listing is live in the network.");
       go("#/dashboard");
+    } else if (result?.duplicate) {
+      const taken = result.duplicate.filter((k) => DUP_FIELDS[k]);
+      setDupAlert(taken);
+      if (taken.length) $("#" + DUP_FIELDS[taken[0]][0]).focus();
+      toast("Already registered", dupMessage(result.duplicate), false);
+      btn.disabled = false;
+      btn.innerHTML = `${ico("check")} Create account &amp; publish listing`;
     } else {
       btn.disabled = false;
       btn.innerHTML = `${ico("check")} Create account &amp; publish listing`;

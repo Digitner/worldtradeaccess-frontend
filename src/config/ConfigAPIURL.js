@@ -27,11 +27,14 @@ class ConfigAPIURL {
   static myDeals          = `${this.baseUrl}/api/me/deals`;
   static myInboundDeals   = `${this.baseUrl}/api/me/inbound-deals`;
   static myMatchCount     = `${this.baseUrl}/api/me/match-count`;
+  static recentlyViewed   = `${this.baseUrl}/api/me/recently-viewed`;
+  static myCheckDuplicate = `${this.baseUrl}/api/me/check-duplicate`;
 
   // Members
   static members          = `${this.baseUrl}/api/members`;
   static membersFeatured  = `${this.baseUrl}/api/members/featured`;
   static membersTop       = `${this.baseUrl}/api/members/top`;
+  static membersCheckDuplicate = `${this.baseUrl}/api/members/check-duplicate`;
   // GET /api/members/:id        → `${this.members}/${id}`
   // GET /api/members/:id/similar→ `${this.members}/${id}/similar`
 

@@ -97,15 +97,21 @@ export async function runSearch() {
       live: true,
       q,
       role,
-      poolN: result.total || (result.matches || []).length,
+      poolN: result.pool_size || result.total || (result.matches || []).length,
       pool: result.matches || [],
+      // Needed by the follow-up chat below: the chat endpoint is scoped to one stored search, and a guest
+      // search has no user to authorise against, so POST /match hands back a token to prove it was ours.
+      searchId: result.search_id || null,
+      guestToken: result.guest_token || null,
     };
   } else {
     toast("No matches", "No strong matches found. Try adjusting your description.", false);
-    out = { answer: "", matches: [], next: [], live: false, q, role, poolN: 0, pool: [] };
+    out = { answer: "", matches: [], next: [], live: false, q, role, poolN: 0, pool: [], searchId: null, guestToken: null };
   }
 
-  state.SR.last = out; state.SR.chat = [];
+  // A new search starts a new conversation - clear the transcript and release the in-flight guard, so a
+  // follow-up that was still streaming when the member re-searched can't leave the box permanently disabled.
+  state.SR.last = out; state.SR.chat = []; state.SR.chatBusy = false;
   if (res) renderMatches(res, out);
   state.SR.busy = false; const btn = $("#s_run"); if (btn) btn.disabled = false;
 }
@@ -114,9 +120,19 @@ export function renderMatches(res, out) {
   const list = out.matches || [];
   let html = "";
   if (out.live && out.answer) {
-    html += `<div class="answer"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif" style="font-size:18px">Claude's answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" style="margin-top:14px">${out.next.map((n, i) => `<button class="chip" onclick="askFollow(state.SR.last.next[${i}])">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}</div>`;
+    // The suggestion chips carry their question in data-q and are handled by one delegated listener below.
+    // They used to be inline onclick="askFollow(state.SR.last.next[i])", which could never fire: `askFollow`
+    // did not exist anywhere in the app, and `state` is a module import, not a global an inline handler can
+    // see - so clicking a suggestion just threw a ReferenceError into the console.
+    html += `<div class="answer"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif" style="font-size:18px">Claude's answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}</div>`;
   }
-  if (!list.length) { res.innerHTML = html + `<div class="empty">No strong matches in the network for that one. Try a different sector, goal or one of the examples.</div>`; return; }
+  if (!list.length) {
+    // Still offer the follow-up box: with nothing found, "why no matches?" / "what should I change?" is
+    // exactly when a member wants to ask something.
+    res.innerHTML = html + `<div class="empty">No strong matches in the network for that one. Try a different sector, goal or one of the examples.</div>` + followUpCard(out);
+    wireFollowUp();
+    return;
+  }
   html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600"><span style="color:var(--blue-text)">${list.length}</span> strong ${list.length === 1 ? "match" : "matches"}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by Claude</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div><div class="match-grid">`;
   list.forEach((d, i) => {
     const m = d.m, sc = Math.round(d.score);
@@ -128,7 +144,116 @@ export function renderMatches(res, out) {
     </div></article>`;
   });
   html += `</div>`;
+  html += followUpCard(out);
   res.innerHTML = html;
+  wireFollowUp();
+}
+
+/* ================= FOLLOW-UP CHAT =================
+   Asks a question against a search that already ran. The backend keeps the search and its ranked matches
+   (MatchSearch) plus the running transcript (MatchChatMessage), so each question is answered with the
+   matches on screen as context - we only send the question itself, never the whole history. */
+
+function followUpCard(out) {
+  // Needs a stored search to ask against. A keyword-fallback result still has one; only a failed request
+  // (searchId null) has nothing to attach a conversation to.
+  if (!out || !out.searchId) return "";
+  return `<div class="card chat">
+    <div class="top" style="align-items:center"><h2 style="font-size:18px;margin:0;display:flex;gap:9px;align-items:center"><span style="color:var(--blue-text);display:inline-flex">${ico("sparkle")}</span>Ask a follow-up</h2><span class="muted">Answered using these matches and the member directory</span></div>
+    <div class="chat-log" id="chatLog" aria-live="polite"></div>
+    <div class="examples" id="chatSugg"></div>
+    <form class="chat-form" id="chatForm" style="margin-top:12px">
+      <label class="vh" for="chatQ">Your follow-up question</label>
+      <input id="chatQ" placeholder="Ask about these matches…" autocomplete="off">
+      <button class="btn btn-primary" id="chatAsk" type="submit">${ico("send")}<span class="hide-sm">Ask</span></button>
+    </form>
+  </div>`;
+}
+
+function wireFollowUp() {
+  const form = $("#chatForm");
+  if (form) {
+    form.onsubmit = e => {
+      e.preventDefault();
+      const input = $("#chatQ");
+      const v = (input?.value || "").trim();
+      if (!v) return;
+      input.value = "";
+      askFollow(v);
+    };
+  }
+  // One delegated listener per chip container, so chips re-rendered later keep working.
+  for (const sel of ["#chatSugg", "#answerNext"]) {
+    const box = $(sel);
+    if (box) box.onclick = e => { const b = e.target.closest(".chip"); if (b && b.dataset.q) askFollow(b.dataset.q); };
+  }
+  paintSuggestions();
+  renderChat();
+}
+
+// Chips come from the search's own follow_up_suggestions. Drop any already asked so the list shrinks as the
+// conversation goes, rather than inviting the member to ask the same thing twice.
+function paintSuggestions() {
+  const box = $("#chatSugg");
+  if (!box) return;
+  const asked = new Set((state.SR.chat || []).filter(t => t.role === "user").map(t => t.content));
+  const left = ((state.SR.last && state.SR.last.next) || []).filter(s => !asked.has(s));
+  box.innerHTML = left.map(s => `<button type="button" class="chip" data-q="${esc(s)}">${ico("send")} ${esc(s)}</button>`).join("");
+  box.style.display = left.length ? "" : "none";
+}
+
+export function renderChat() {
+  const log = $("#chatLog");
+  if (!log) return;
+  log.innerHTML = (state.SR.chat || []).map((t, i) =>
+    `<div class="bubble ${t.role === "user" ? "me" : "ai"}"${t.role === "assistant" ? ` id="bub${i}"` : ""}>${esc(t.content || "Thinking…")}</div>`
+  ).join("");
+  log.scrollTop = log.scrollHeight;
+}
+
+export async function askFollow(question) {
+  const q = (question || "").trim();
+  const ctx = state.SR.last;
+  if (!q || !ctx || !ctx.searchId || state.SR.chatBusy) return;
+
+  state.SR.chatBusy = true;
+  const input = $("#chatQ"); const btn = $("#chatAsk");
+  if (input) input.disabled = true;
+  if (btn) btn.disabled = true;
+
+  state.SR.chat.push({ role: "user", content: q });
+  state.SR.chat.push({ role: "assistant", content: "" }); // empty renders as "Thinking…" until text arrives
+  const idx = state.SR.chat.length - 1;
+  renderChat();
+  paintSuggestions();
+
+  try {
+    const full = await _svc.followUpChat({
+      searchId: ctx.searchId,
+      question: q,
+      guestToken: ctx.guestToken,
+      // Paint each chunk straight into the bubble's text rather than re-rendering the log, so the answer
+      // streams in without the browser rebuilding (and scroll-jumping) the whole conversation.
+      onText: text => {
+        state.SR.chat[idx].content = text;
+        const bubble = $("#bub" + idx);
+        if (bubble) {
+          bubble.textContent = text;
+          const log = $("#chatLog");
+          if (log) log.scrollTop = log.scrollHeight;
+        }
+      },
+    });
+    state.SR.chat[idx].content = full || "The advisor didn't return an answer. Please try asking again.";
+  } catch (err) {
+    state.SR.chat[idx].content = err?.message || "The advisor couldn't answer that just now. Try again in a moment.";
+  }
+
+  renderChat();
+  state.SR.chatBusy = false;
+  const input2 = $("#chatQ"); const btn2 = $("#chatAsk");
+  if (input2) { input2.disabled = false; input2.focus(); }
+  if (btn2) btn2.disabled = false;
 }
 
 // Keep localMatch for fallback use elsewhere

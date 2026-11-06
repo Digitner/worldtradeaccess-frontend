@@ -87,7 +87,21 @@ function useServices() {
     }
   };
 
-  return { getDashboard, getMe, getMyIntros, getMyFunding, getMyDeals, getInboundDeals, getOpportunities };
+  // Companies the member has actually opened the profile page for, most recent first - GET /me/recently-viewed
+  // (MemberController.recentlyViewed, fed by a ProfileView row written in MemberController.getById). A card
+  // seen in a carousel or search result never counts; only clicking through to the profile itself does.
+  const getRecentlyViewed = async () => {
+    try {
+      const response = await APIRequest.request("GET", ConfigAPIURL.recentlyViewed, "");
+      const d = response?.data;
+      if (d?.responseCode === 100 ) return d.result || d.members || [];
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  return { getDashboard, getMe, getMyIntros, getMyFunding, getMyDeals, getInboundDeals, getOpportunities, getRecentlyViewed };
 }
 
 export default useServices;

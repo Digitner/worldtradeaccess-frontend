@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>import diag</title></head>
+<body>
+<pre id="out">running...</pre>
+<script type="module">
+const out = document.getElementById('out');
+const log = (s) => { out.textContent += s + "\n"; };
+
+const files = [
+  '/src/utils/helpers.js',
+  '/src/utils/forms.js',
+  '/src/utils/router.js',
+  '/src/utils/state.js',
+  '/src/utils/store.js',
+  '/src/utils/globals.js',
+  '/src/utils/bootstrap.js',
+  '/src/utils/animations.js',
+  '/src/utils/APIRequest.js',
+  '/src/config/index.js',
+  '/src/config/LocalStorage.js',
+  '/src/config/ConfigAPIURL.js',
+  '/src/constant/icons.js',
+  '/src/constant/images.js',
+  '/src/constant/countries.js',
+  '/src/constant/pillars.js',
+  '/src/constant/roles.js',
+  '/src/constant/navigation.js',
+  '/src/constant/seed.js',
+  '/src/constant/search.js',
+  '/src/constant/news.js',
+  '/src/constant/forms.js',
+  '/src/themes/theme.js',
+  '/src/components/Navbar/navbar.js',
+  '/src/components/Toasts/toast.js',
+  '/src/components/Footer/subscribe.js',
+  '/src/components/Carousel/Carousel.js',
+  '/src/components/Ads/Ads.js',
+  '/src/components/Chips/Chips.js',
+  '/src/components/ScoreRing/ScoreRing.js',
+  '/src/components/MarketCard/MarketCard.js',
+  '/src/components/FundingCard/FundingCard.js',
+  '/src/pages/Home/Home.js',
+  '/src/pages/Home/hooks/useServices.js',
+  '/src/pages/Register/Register.js',
+  '/src/pages/Register/hooks/useServices.js',
+  '/src/pages/Login/Login.js',
+  '/src/pages/Login/hooks/useServices.js',
+  '/src/pages/Dashboard/Dashboard.js',
+  '/src/pages/Dashboard/hooks/useServices.js',
+  '/src/pages/EditListing/EditListing.js',
+  '/src/pages/EditListing/hooks/useServices.js',
+  '/src/pages/Search/Search.js',
+  '/src/pages/Search/hooks/useServices.js',
+  '/src/pages/Directory/Directory.js',
+  '/src/pages/Directory/hooks/useServices.js',
+  '/src/pages/Member/Member.js',
+  '/src/pages/Member/hooks/useServices.js',
+  '/src/pages/Deal/Deal.js',
+  '/src/pages/Deal/hooks/useServices.js',
+  '/src/pages/Funding/Funding.js',
+  '/src/pages/Funding/hooks/useServices.js',
+  '/src/pages/News/News.js',
+  '/src/pages/News/hooks/useServices.js',
+  '/src/pages/Advertise/Advertise.js',
+  '/src/pages/Advertise/hooks/useServices.js',
+  '/src/pages/Contact/Contact.js',
+  '/src/pages/Contact/hooks/useServices.js',
+  '/src/pages/Admin/Admin.js',
+  '/src/pages/Admin/hooks/useServices.js',
+];
+
+for (const f of files) {
+  try {
+    await import(/* @vite-ignore */ f);
+    log('OK   ' + f);
+  } catch (e) {
+    log('FAIL ' + f + '  ->  ' + e.name + ': ' + e.message);
+  }
+}
+log('--- done ---');
+</script>
+</body>
+</html>

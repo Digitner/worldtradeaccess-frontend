@@ -71,8 +71,10 @@ function useServices() {
       );
       const d = response?.data;
       if (d?.responseCode === 100 ) return d.result?.message || d.message || "";
+      publishNotification(d?.message || "Could not draft an introduction.", "error");
       return "";
     } catch {
+      publishNotification("Unable to draft an introduction.", "error");
       return "";
     }
   };

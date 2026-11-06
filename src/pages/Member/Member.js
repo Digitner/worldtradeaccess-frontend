@@ -234,6 +234,7 @@ export async function viewMember(app, id) {
 
     const dBtn = $("#draftAI");
     if (dBtn) dBtn.onclick = async () => {
+      if (!state.USER) { toast("Create an account first", "Register to draft an introduction.", false); go("#/register"); return; }
       dBtn.disabled = true; dBtn.innerHTML = ico("sparkle") + " Drafting…";
       const msg = await _svc.draftIntro({ toMemberId: member.id });
       if (msg) $("#i_msg").value = msg;

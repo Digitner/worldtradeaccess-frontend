@@ -23,8 +23,12 @@ const APIRequest = {
   },
 
   returnResponse: async function (response, url, config) {
-    // Token expired -- try refresh
-    if (response?.data?.responseCode === 118 || response?.responseCode === 118) {
+    // 118 means "session token expired" only for logged-in requests. The /auth/ endpoints (send-otp,
+    // verify-otp, login...) reuse 118 for a wrong or spent OTP; those must reach the caller so it can show
+    // the real message, instead of wiping storage and bouncing the person back to the login screen.
+    const isAuthCall = String(url).includes("/api/auth/");
+    const hadSession = !!(config?.headers?.authtoken);
+    if (!isAuthCall && hadSession && (response?.data?.responseCode === 118 || response?.responseCode === 118)) {
       const refreshed = await this.refreshToken();
       if (refreshed) {
         // Retry original request once

@@ -69,15 +69,16 @@ export async function viewEditListing(app) {
         </div>
       </div>
       <div class="form-grid">
-        <div class="field"><label for="e_name">${ico("building")}Company name</label><input id="e_name" value="${esc(user.company_name || user.name || "")}"></div>
-        <div class="field"><label for="e_site">${ico("globe")}Website</label><input id="e_site" value="${esc(user.website || user.site || "")}"></div>
+        <div class="field"><label for="e_name">${ico("building")}Company name</label><input id="e_name" value="${esc(user.company_name || user.name || "")}"><div class="err-msg" id="e_name_dup" role="alert">This company name is already registered.</div></div>
+        <div class="field"><label for="e_site">${ico("globe")}Website</label><input id="e_site" value="${esc(user.website || user.site || "")}"><div class="err-msg" id="e_site_dup" role="alert">This website is already registered.</div></div>
         <div class="field"><label for="e_person">${ico("user")}Contact person</label><input id="e_person" value="${esc(user.contact_person || user.person || "")}"></div>
         <div class="field"><label for="e_role">${ico("briefcase")}Designation</label><input id="e_role" value="${esc(user.designation || user.role_t || "")}"></div>
-        <div class="field"><label for="e_email">${ico("mail")}Email</label><input id="e_email" type="email" value="${esc(user.email || "")}"><div class="err-msg">Enter a valid email</div></div>
-        <div class="field"><label for="e_phone">${ico("phone")}Phone</label><input id="e_phone" value="${esc(user.phone || "")}"></div>
+        <div class="field"><label for="e_email">${ico("mail")}Email</label><input id="e_email" type="email" value="${esc(user.email || "")}"><div class="err-msg">Enter a valid email</div><div class="err-msg" id="e_email_dup" role="alert">This email is already registered to another account.</div></div>
+        <div class="field"><label for="e_phone">${ico("phone")}Phone</label><input id="e_phone" value="${esc(user.phone || "")}"><div class="err-msg" id="e_phone_dup" role="alert">This phone number is already registered.</div></div>
         <div class="field"><label for="e_country">${ico("pin")}Country</label><select id="e_country">${COUNTRIES.map(([c]) => `<option ${c === (user.country) ? "selected" : ""}>${c}</option>`).join("")}</select></div>
         <div class="field"><label for="e_pillar">${ico("grid")}Sector</label><select id="e_pillar">${PILLARS.map(p => `<option ${p === (user.sector || user.pillar) ? "selected" : ""}>${p}</option>`).join("")}</select></div>
       </div>
+      <div class="err-msg" id="e_dupAlert" role="alert" style="margin-top:12px;font-size:13.5px"></div>
       <div class="field full" style="margin-top:18px">
         <span class="flabel">${ico("shield")}Membership type</span>
         <div class="choice-cards" id="e_tiers" style="margin-top:8px">${Object.entries(TIERS).map(([k, v]) => `<button type="button" class="choice" data-tier="${k}" aria-pressed="${k === tier}"><span class="t">${ico(v.ic)}${v.t}</span><span class="d" style="display:block">${v.d}</span></button>`).join("")}</div>
@@ -104,6 +105,44 @@ export async function viewEditListing(app) {
   $("#e_tiers").onclick = e => { const c = e.target.closest(".choice"); if (!c) return; tier = c.dataset.tier; $$("#e_tiers .choice").forEach(x => x.setAttribute("aria-pressed", String(x === c))); };
   $("#e_goals").onclick = e => { const b = e.target.closest(".role"); if (!b) return; goal = b.dataset.goal; $$("#e_goals .role").forEach(x => x.setAttribute("aria-pressed", String(x === b))); };
   const s = $("#e_seek"); const upd = () => { const n = wc(s.value); $("#e_wc").textContent = n + " words"; $("#e_wc").classList.toggle("warn", n > 25); }; s.oninput = upd; upd();
+
+  // "Already registered" checks: company name, website, phone and email, each on its own, against OTHER members.
+  // Your own listing and any field you have not changed are never flagged (server-side). Each taken field gets a
+  // red border and its own message, plus a summary line under the form. Stale replies are dropped.
+  const DUP_FIELDS = { company: ["e_name", "Company name"], website: ["e_site", "Website"], phone: ["e_phone", "Phone"], email: ["e_email", "Email"] };
+  let dupSeq = 0, dupTimer = null;
+  const setDup = (taken) => {
+    for (const [k, [id]] of Object.entries(DUP_FIELDS)) {
+      const on = taken.includes(k);
+      $("#" + id).classList.toggle("err", on);
+      $("#" + id + "_dup").classList.toggle("show", on);
+    }
+    const labels = taken.filter((k) => DUP_FIELDS[k]).map((k) => DUP_FIELDS[k][1]);
+    $("#e_dupAlert").textContent = labels.length
+      ? labels.join(", ") + (labels.length > 1 ? " are" : " is") + " already registered by another member."
+      : "";
+    $("#e_dupAlert").classList.toggle("show", labels.length > 0);
+  };
+  const dupMessage = (taken) => taken.map((k) => (DUP_FIELDS[k] || [0, k])[1]).join(", ") + " already registered.";
+  const runDup = async () => {
+    const seq = ++dupSeq;
+    const r = await _svc.checkMyDuplicate({
+      name: $("#e_name").value, website: $("#e_site").value, phone: $("#e_phone").value, email: $("#e_email").value,
+    });
+    const taken = Object.keys(DUP_FIELDS).filter((k) => r[k]);
+    if (seq === dupSeq) setDup(taken);
+    return taken;
+  };
+  Object.values(DUP_FIELDS).forEach(([id]) => {
+    const el = $("#" + id);
+    el.oninput = () => {
+      clearTimeout(dupTimer);
+      el.classList.remove("err");
+      $("#" + id + "_dup").classList.remove("show");
+      dupTimer = setTimeout(runDup, 450);
+    };
+    el.onblur = () => { clearTimeout(dupTimer); runDup(); };
+  });
 
   // Cover upload handler
   $("#cover_file").onchange = async (e) => {
@@ -169,7 +208,18 @@ export async function viewEditListing(app) {
   $("#editForm").onsubmit = async (e) => {
     e.preventDefault();
     if ($("#e_email").value.trim() && !reqField("e_email", isEmail)) return;
-    const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "Saving…";
+    const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "Checking…";
+    const resetBtn = () => { btn.disabled = false; btn.innerHTML = `${ico("check")} Save changes`; };
+
+    clearTimeout(dupTimer);
+    const takenNow = await runDup();
+    if (takenNow.length) {
+      resetBtn();
+      $("#" + DUP_FIELDS[takenNow[0]][0]).focus();
+      toast("Already registered", dupMessage(takenNow), false);
+      return;
+    }
+    btn.textContent = "Saving…";
 
     const formData = {
       company_name: $("#e_name").value.trim(),
@@ -189,6 +239,14 @@ export async function viewEditListing(app) {
     };
 
     const result = await _svc.saveListing(formData);
+    if (result?.duplicate) {
+      const taken = result.duplicate.filter((k) => DUP_FIELDS[k]);
+      setDup(taken);
+      if (taken.length) $("#" + DUP_FIELDS[taken[0]][0]).focus();
+      toast("Already registered", dupMessage(result.duplicate), false);
+      resetBtn();
+      return;
+    }
     if (result) {
       if (typeof result === "object") state.USER = { ...state.USER, ...result };
       toast("Listing saved", "Your profile has been updated.");

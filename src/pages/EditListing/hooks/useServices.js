@@ -53,6 +53,8 @@ function useServices() {
         JSON.stringify(formData)
       );
       const d = response?.data;
+      // Server-side guard: e.g. ["website","phone"] already registered - EditListing.js shows the red alerts
+      if (Array.isArray(d?.duplicate_fields) && d.duplicate_fields.length) return { duplicate: d.duplicate_fields };
       if (d?.responseCode === 100 ) {
         const updated = d.user || d.result;
         if (updated) LocalStorage.setUser(updated);
@@ -87,7 +89,23 @@ function useServices() {
     }
   };
 
-  return { getMe, saveListing, uploadImage, changePassword };
+  // Live check for the edit form: which of { name, website, phone, email } belong to ANOTHER member. Your own
+  // listing and unchanged fields are excluded server-side. Fails open - the save re-checks authoritatively anyway.
+  const checkMyDuplicate = async ({ name = "", website = "", phone = "", email = "" } = {}) => {
+    const none = { company: false, website: false, phone: false, email: false };
+    try {
+      const v = { name, website, phone, email };
+      const qs = "?" + Object.entries(v).map(([k, x]) => k + "=" + encodeURIComponent(String(x).trim())).join("&");
+      const response = await APIRequest.request("GET", ConfigAPIURL.myCheckDuplicate + qs, "");
+      const d = response?.data;
+      if (d?.responseCode === 100) {
+        return { company: !!d.company_exists, website: !!d.website_exists, phone: !!d.phone_exists, email: !!d.email_exists };
+      }
+    } catch {}
+    return none;
+  };
+
+  return { getMe, saveListing, uploadImage, changePassword, checkMyDuplicate };
 }
 
 export default useServices;

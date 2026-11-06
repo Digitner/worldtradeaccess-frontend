@@ -16,13 +16,14 @@ export async function viewDashboard(app) {
   app.innerHTML = `<section><div class="wrap"><div class="loading-shimmer" style="height:300px;border-radius:12px;margin-top:24px"></div></div></section>`;
 
   const svc = useServices();
-  const [dashboard, intros, myFund, deals, inboundDeals, opportunities] = await Promise.all([
+  const [dashboard, intros, myFund, deals, inboundDeals, opportunities, recentlyViewed] = await Promise.all([
     svc.getDashboard(),
     svc.getMyIntros(),
     svc.getMyFunding(),
     svc.getMyDeals(),
     svc.getInboundDeals(),
     svc.getOpportunities(),
+    svc.getRecentlyViewed(),
   ]);
 
   // Merge API data into state.USER for downstream use
@@ -65,6 +66,7 @@ export async function viewDashboard(app) {
       <div class="kpi"><span class="ki">${ico("user")}</span><div><div class="n">${pct}%</div><div class="l">Profile complete</div></div></div>
     </div>
     ${opportunities.length ? `<div class="section-h"><h2 style="font-size:21px">Opportunities for you</h2><button class="linkish" onclick="go('#/search')">Ask the AI matcher →</button></div>${carousel(opportunities.slice(0, 10).map(m => mktCardHTML({ id: m._id, name: m.company_name, country: m.country, pillar: m.sector, type: m.goal, seek: m.seek, tier: m.tier, image_url: m.image_url || null, cover_url: m.cover_url || null })).join(""), true, "Opportunities for you")}` : ""}
+    ${recentlyViewed.length ? `<div class="section-h" style="margin-top:22px"><h2 style="font-size:21px">Recently viewed</h2><button class="linkish" onclick="go('#/directory')">Browse directory →</button></div>${carousel(recentlyViewed.slice(0, 10).map(m => mktCardHTML({ id: m._id, name: m.company_name, country: m.country, pillar: m.sector, type: m.goal, seek: m.seek, tier: m.tier, image_url: m.image_url || null, cover_url: m.cover_url || null })).join(""), true, "Recently viewed")}` : ""}
     <div class="split" style="margin-top:22px">
       <div class="main" style="display:flex;flex-direction:column;gap:16px">
         <div class="card">
