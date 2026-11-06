@@ -1,4 +1,5 @@
 /* eslint-disable */
+import { logActivity } from '../../utils/activity.js';
 import { carousel } from '../../components/Carousel/Carousel.js';
 import { ccChip, pIco, typeTag } from '../../components/Chips/Chips.js';
 import { mktCardHTML } from '../../components/MarketCard/MarketCard.js';
@@ -33,7 +34,7 @@ export async function viewMember(app, id) {
   const member = {
     id: m._id || m.id,
     name: m.company_name || m.name,
-    country: m.country,
+    country: m.country_name || m.country,
     pillar: m.sector || m.pillar,
     type: m.goal || m.type,
     seek: m.seek,
@@ -54,14 +55,17 @@ export async function viewMember(app, id) {
   const simMapped = similar.map(s => ({
     id: s._id || s.id,
     name: s.company_name || s.name,
-    country: s.country,
+    country: s.country_name || s.country,
     pillar: s.sector || s.pillar,
     type: s.goal || s.type,
     seek: s.seek,
     tier: s.tier,
   }));
 
-  const heroImg = member.cover_url || member.image_url || "";
+  logActivity("View", member.name, { member_id: member.id, sector: member.pillar, country: member.country, goal: member.type });
+
+  const realHero = member.cover_url || member.image_url || "";
+  const heroImg = realHero || photo(member) || "";
   const gal = [...new Set(member.gallery.filter(Boolean))];
   _galImages = gal;
 
@@ -69,32 +73,37 @@ export async function viewMember(app, id) {
   const tierInfo = member.tier && TIERS[member.tier] ? TIERS[member.tier] : null;
 
   app.innerHTML = `
-  <section style="padding-bottom:60px">
+  <section style="padding-top:14px;padding-bottom:60px">
 
     <!-- Back nav -->
     <div class="wrap" style="padding-top:16px;padding-bottom:0">
       <button class="backlink" onclick="history.length>1?history.back():go('#/directory')">${ico("back")} Back to directory</button>
     </div>
 
-    <!-- Cover hero -->
-    <div style="position:relative;height:260px;background:linear-gradient(135deg,var(--surface-2) 0%,var(--surface) 100%);overflow:hidden;margin-top:12px">
-      ${heroImg
-        ? `<img src="${esc(heroImg)}" alt="${esc(member.name)}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="openVideo('${esc(member.name)}','${esc(heroImg)}')">`
-        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.06;font-size:120px">${ico("building")}</div>`}
-      ${heroImg ? `<button class="play" onclick="openVideo('${esc(member.name)}','${esc(heroImg)}')" aria-label="View cover of ${esc(member.name)}" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"><span class="pb">${ico("play")}</span></button>` : ""}
-      <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to top,var(--surface),transparent)"></div>
+    <!-- Cover hero: a rounded banner inside the page width. An uploaded cover is shown whole (contained, on a
+         blurred copy of itself) so logos and portraits are never cut off; the stock sector photo fills it. -->
+    <div class="wrap" style="padding-top:0;padding-bottom:0">
+      <div style="position:relative;height:clamp(240px,38vh,460px);border-radius:16px;overflow:hidden;margin-top:8px;background:var(--surface-2)">
+        ${heroImg
+          ? (realHero
+            ? `<img src="${esc(heroImg)}" alt="" aria-hidden="true" style="position:absolute;inset:-20px;width:calc(100% + 40px);height:calc(100% + 40px);object-fit:cover;filter:blur(22px) saturate(1.1);opacity:.55">
+               <img src="${esc(heroImg)}" alt="${esc(member.name)}" style="position:relative;width:100%;height:100%;object-fit:contain;cursor:pointer" onclick="openVideo('${esc(member.name)}','${esc(heroImg)}')">`
+            : `<img src="${esc(heroImg)}" alt="" style="width:100%;height:100%;object-fit:cover">`)
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:.06;font-size:120px">${ico("building")}</div>`}
+        ${realHero ? `<button class="play" onclick="openVideo('${esc(member.name)}','${esc(heroImg)}')" aria-label="View cover of ${esc(member.name)}" style="position:absolute;right:14px;bottom:14px"><span class="pb">${ico("play")}</span></button>` : ""}
+      </div>
     </div>
 
     <!-- Profile header -->
     <div class="wrap">
-      <div style="display:flex;gap:20px;align-items:flex-end;margin-top:-32px;position:relative;z-index:2;flex-wrap:wrap">
+      <div style="display:flex;gap:20px;align-items:flex-start;margin-top:0;padding-left:18px;position:relative;z-index:2;flex-wrap:wrap">
         <!-- Avatar -->
-        <div style="width:72px;height:72px;border-radius:18px;background:var(--blue-soft,rgba(59,130,246,.15));border:3px solid var(--surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--blue-text,#3b82f6);flex-shrink:0;overflow:hidden">
+        <div style="margin-top:-36px;flex:0 0 auto;width:72px;height:72px;border-radius:18px;background:var(--blue-soft,rgba(59,130,246,.15));border:3px solid var(--surface);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--blue-text,#3b82f6);flex-shrink:0;overflow:hidden">
           ${member.image_url
             ? `<img src="${esc(member.image_url)}" alt="" style="width:100%;height:100%;object-fit:cover">`
             : esc(initials)}
         </div>
-        <div style="flex:1;min-width:0;padding-bottom:4px">
+        <div style="flex:1;min-width:0;padding:12px 0 4px">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
             <h1 style="font-size:26px;font-weight:800;margin:0;line-height:1.2">${esc(member.name)}</h1>
             ${member.spon ? `<span class="spon-badge">Sponsored</span>` : ""}

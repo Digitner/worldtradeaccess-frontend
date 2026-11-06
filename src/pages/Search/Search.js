@@ -9,6 +9,7 @@ import useServices from './hooks/useServices.js';
 import { $, $$, bold, esc, ico, imgTag, photo, wc } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
+import { AI_NAME } from '../../constant/brand.js';
 
 export function quickSearch(q, role) { state.HERO.q = q; state.HERO.role = role || "buy"; go("#/search"); }
 
@@ -23,7 +24,7 @@ export async function viewSearch(app, _a, soft) {
   <section><div class="wrap">
     <span class="kicker">The engine</span>
     <h1 class="page-h">Find your matches.</h1>
-    <p class="page-sub">Pick your goal and describe what you seek. Claude reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
+    <p class="page-sub">Pick your goal and describe what you seek. ${AI_NAME} reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
     <form class="console" style="margin-top:20px" id="searchForm" novalidate>
       <span class="flabel" style="margin-bottom:11px">1 · I am here to…</span>
       <div class="roles" id="s_roles">${Object.entries(ROLE_META).map(([k, v]) => `<button type="button" class="role" data-role="${k}" aria-pressed="${k === state.SR.role}">${ico(v.ic)}${v.label}</button>`).join("")}</div>
@@ -35,7 +36,7 @@ export async function viewSearch(app, _a, soft) {
       <div class="examples" id="s_examples"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
         <button class="btn btn-primary" id="s_run" type="submit">${ico("sparkle")} Find matches <span class="arrow">→</span></button>
-        <span class="engine on" id="s_engine"><span class="live"></span><span>Claude answers live</span></span>
+        <span class="engine on" id="s_engine"><span class="live"></span><span>${AI_NAME} answers live</span></span>
       </div>
     </form>
     <div id="s_results" style="margin-top:24px"></div>
@@ -63,7 +64,7 @@ export async function runSearch() {
   const q = $("#s_intent")?.value.trim(), res = $("#s_results");
   if (!q) { if (res) res.innerHTML = `<div class="empty">${ico("search")} Describe what you're looking for, then run the match.</div>`; if ($("#s_intent")) $("#s_intent").focus(); return; }
   state.SR.busy = true; if ($("#s_run")) $("#s_run").disabled = true;
-  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">Claude is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
+  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">${AI_NAME} is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
 
   const role = state.SR.role;
   const result = await _svc.runMatch({ goal: role, seek: q });
@@ -83,7 +84,7 @@ export async function runSearch() {
           m: {
             id: mem._id || mem.id || m.member_id,
             name: mem.company_name || mem.name,
-            country: mem.country || mem.country_name,
+            country: mem.country_name || mem.country,
             pillar: mem.sector || mem.pillar,
             type: mem.goal || mem.type,
             seek: mem.seek,
@@ -124,7 +125,7 @@ export function renderMatches(res, out) {
     // They used to be inline onclick="askFollow(state.SR.last.next[i])", which could never fire: `askFollow`
     // did not exist anywhere in the app, and `state` is a module import, not a global an inline handler can
     // see - so clicking a suggestion just threw a ReferenceError into the console.
-    html += `<div class="answer"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif" style="font-size:18px">Claude's answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}</div>`;
+    html += `<div class="answer"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif" style="font-size:18px">${AI_NAME}'s answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}</div>`;
   }
   if (!list.length) {
     // Still offer the follow-up box: with nothing found, "why no matches?" / "what should I change?" is
@@ -133,7 +134,7 @@ export function renderMatches(res, out) {
     wireFollowUp();
     return;
   }
-  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600"><span style="color:var(--blue-text)">${list.length}</span> strong ${list.length === 1 ? "match" : "matches"}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by Claude</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div><div class="match-grid">`;
+  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600"><span style="color:var(--blue-text)">${list.length}</span> strong ${list.length === 1 ? "match" : "matches"}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by ${AI_NAME}</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div><div class="match-grid">`;
   list.forEach((d, i) => {
     const m = d.m, sc = Math.round(d.score);
     html += `<article class="match" style="animation-delay:${i * .06}s">${ringHTML(sc)}<div style="flex:1;min-width:0">

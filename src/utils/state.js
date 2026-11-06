@@ -18,5 +18,5 @@ state.MY_FORMS=null;    // this viewer's own submissions (shared mode)
 state.CAROUSEL_TIMERS=[];
 state.SR={role:(state.USER&&state.USER.type)||"buy",busy:false,last:null,chat:[],ctl:null,chatBusy:false};
 state.HERO={q:null,role:null};
-state.DIR={pillar:"all",q:""};
+state.DIR={pillar:"all",q:"",country:"all",type:"all",sort:"name"};
 state.ADMIN={rows:[],loaded:false,loading:false,tab:"all",q:"",sel:null,names:{},err:"",pw:false};

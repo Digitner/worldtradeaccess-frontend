@@ -3,6 +3,8 @@ import './globals.js';
 import { initTheme } from '../themes/theme.js';
 import { initNavbar, renderChrome } from '../components/Navbar/navbar.js';
 import { route } from './router.js';
+import { initFx } from './fx.js';
+import { initTracking } from './activity.js';
 import { state } from './state.js';
 import LocalStorage from '../config/LocalStorage.js';
 import APIRequest from './APIRequest.js';
@@ -15,7 +17,8 @@ export async function bootstrap() {
 
   initTheme();
   initNavbar();
-  window.addEventListener('hashchange', () => route());
+  initFx();          // route changes go through the page sweep, then route()
+  initTracking();    // optional click tracking (browser only, off until a member agrees)
 
   // Restore user from localStorage and verify session with backend
   LocalStorage.restore();

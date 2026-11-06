@@ -5,6 +5,7 @@ import { reqField } from '../../utils/forms.js';
 import useServices from './hooks/useServices.js';
 import { $, $$, esc, ico, img, imgTag, isEmail } from '../../utils/helpers.js';
 import { state } from '../../utils/state.js';
+import { PILLAR_IMG } from '../../constant/pillars.js';
 
 const _svc = useServices();
 
@@ -35,7 +36,7 @@ export async function viewNews(app) {
   const mainEl = document.getElementById("newsMain");
   if (mainEl) {
     if (articles.length) {
-      mainEl.innerHTML = articles.map(n => `<article class="news-item"><div class="ph">${imgTag(n.image_url ? n.image_url : "", "")}</div><div class="b"><div class="news-meta"><span class="tag">${ico("news")}${esc(n.category || n.cat || "News")}</span><span style="display:inline-flex;gap:5px;align-items:center">${ico("calendar")}${esc(n.published_date || n.date || "")}</span></div><h3>${esc(n.title)}</h3><p class="muted" style="margin:0;font-size:14.5px">${esc(n.excerpt || "")}</p><div class="news-body" id="nb_${n._id || n.id}" hidden>${esc(n.body || n.content || "")}</div><button class="btn btn-sm btn-ghost" style="margin-top:10px;padding-left:0" aria-expanded="false" aria-controls="nb_${n._id || n.id}" onclick="toggleNews('${esc(n._id || n.id)}',this)">Read more</button></div></article>`).join("");
+      mainEl.innerHTML = articles.map(n => `<article class="news-item"><div class="ph">${imgTag(n.image_url ? n.image_url : (img(PILLAR_IMG.Trade) || ""), "")}</div><div class="b"><div class="news-meta"><span class="tag">${ico("news")}${esc(n.category || n.cat || "News")}</span><span style="display:inline-flex;gap:5px;align-items:center">${ico("calendar")}${esc(n.published_date || n.date || "")}</span></div><h3>${esc(n.title)}</h3><p class="muted" style="margin:0;font-size:14.5px">${esc(n.excerpt || "")}</p><div class="news-body" id="nb_${n._id || n.id}" hidden>${esc(n.body || n.content || "")}</div><button class="btn btn-sm btn-ghost" style="margin-top:10px;padding-left:0" aria-expanded="false" aria-controls="nb_${n._id || n.id}" onclick="toggleNews('${esc(n._id || n.id)}',this)">Read more</button></div></article>`).join("");
     } else {
       mainEl.innerHTML = `<div class="empty">No news articles yet. Check back soon.</div>`;
     }

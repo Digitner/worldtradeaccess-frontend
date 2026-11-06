@@ -9,6 +9,8 @@ export default function App() {
   return (
     <>
       <Navbar />
+      <div id="sweep" aria-hidden="true"><i></i><b></b><span></span></div>
+      <div id="cur" aria-hidden="true"></div>
       <main id="app"></main>
       <Footer />
       <Toasts />

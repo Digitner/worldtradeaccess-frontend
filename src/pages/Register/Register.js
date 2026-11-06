@@ -8,6 +8,7 @@ import { reqField } from '../../utils/forms.js';
 import { $, $$, ico, isEmail, wc } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
+import { applyConsentFromForm, consentBlock } from '../../utils/activity.js';
 
 export function viewRegister(app) {
   // Pre-fill from query params when redirected from Login after needs_profile
@@ -20,7 +21,7 @@ export function viewRegister(app) {
   let step = "email"; // "email" | "otp" | "profile"
 
   app.innerHTML = `
-  <section><div class="wrap narrow">
+  <section><div class="wrap narrow auth">
     <span class="kicker">Membership</span>
     <h1 class="page-h">Create your account.</h1>
     <p class="page-sub">Join the WorldTradeAccess network. Fields marked <span class="req">*</span> are required.</p>
@@ -86,6 +87,7 @@ export function viewRegister(app) {
         <div class="err-msg" id="dupCompanyAlert" role="alert" style="margin-top:14px;font-size:13.5px"><span id="dupAlertText">Already registered.</span> <button type="button" class="linkish" style="font-size:13.5px" onclick="go('#/login')">Log in</button> if this is your business.</div>
       </div>
 
+      ${consentBlock("r_consent", "If you leave it unticked your membership is unaffected.")}
       <button class="btn btn-primary btn-block" id="regBtn" type="submit" style="margin-top:20px">${ico("mail")} Send code</button>
       <p class="muted" style="text-align:center;margin-top:12px">Already a member? <button type="button" class="linkish" onclick="go('#/login')">Log in</button></p>
     </form>
@@ -325,6 +327,7 @@ export function viewRegister(app) {
           } catch {}
         }
       }
+      applyConsentFromForm("r_consent", "Registration form");
       toast("Welcome to WorldTradeAccess", "Your listing is live in the network.");
       go("#/dashboard");
     } else if (result?.duplicate) {

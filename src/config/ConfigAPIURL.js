@@ -28,6 +28,9 @@ class ConfigAPIURL {
   static myInboundDeals   = `${this.baseUrl}/api/me/inbound-deals`;
   static myMatchCount     = `${this.baseUrl}/api/me/match-count`;
   static recentlyViewed   = `${this.baseUrl}/api/me/recently-viewed`;
+  static myActivity       = `${this.baseUrl}/api/me/activity`;          // POST batch / GET list / DELETE all
+  static myActivityConsent = `${this.baseUrl}/api/me/activity/consent`;  // POST {status,version,method}
+  static myRecommendations = `${this.baseUrl}/api/me/recommendations`;   // GET scored best matches
   static myCheckDuplicate = `${this.baseUrl}/api/me/check-duplicate`;
 
   // Members
@@ -86,6 +89,7 @@ class ConfigAPIURL {
   // Admin
   static adminSubmissions       = `${this.baseUrl}/api/admin/submissions`;
   static adminSubmissionsExport = `${this.baseUrl}/api/admin/submissions/export.csv`;
+  static adminUserActivity      = `${this.baseUrl}/api/admin/user-activity`;
   static adminUsers             = `${this.baseUrl}/api/admin/users`;
   static adminMembers           = `${this.baseUrl}/api/admin/members`;
   static adminIntros            = `${this.baseUrl}/api/admin/intros`;

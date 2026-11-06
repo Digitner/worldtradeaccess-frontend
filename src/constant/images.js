@@ -10,6 +10,8 @@ import handshake from '../assets/images/handshake.jpg';
 import kl from '../assets/images/kl.jpg';
 import lab from '../assets/images/lab.jpg';
 import logo from '../assets/images/logo.png';
+import posterHero from '../assets/images/poster-hero.jpg';
+import heroVideo from '../assets/video/hero.mp4';
 import market from '../assets/images/market.jpg';
 import office from '../assets/images/office.jpg';
 import port from '../assets/images/port.jpg';
@@ -54,3 +56,7 @@ export const IMG = {
   welding,
   wheat
 };
+
+/* Background film for the home hero, page banners and the closing band. */
+export const POSTER = { hero: posterHero };
+export const VIDEO = { hero: heroVideo };

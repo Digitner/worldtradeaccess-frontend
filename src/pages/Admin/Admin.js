@@ -6,6 +6,8 @@ import { curBase, route } from '../../utils/router.js';
 import { STORE, state } from '../../utils/state.js';
 import LocalStorage from '../../config/LocalStorage.js';
 import useServices from './hooks/useServices.js';
+import { viewLogin } from '../Login/Login.js';
+import { pagerHTML } from '../Activity/Activity.js';
 
 const _svc = useServices();
 
@@ -28,9 +30,50 @@ export function adminRows(){
 
 export function summarize(r){const d=r.data||{};const pick={register:["company","country","goal","seeking"],login:["email","company"],edit:["company","goal","seeking"],search:["goal","intent","engine"],intro:["toName","message"],funding:["company","type","amount"],deal:["company","stageName","amount"],ad:["format","company","budget"],alerts:["email","topics"],newsletter:["email"],contact:["subject","message"]}[r.kind]||Object.keys(d).slice(0,3);return pick.map(k=>d[k]).filter(Boolean).map(v=>String(v)).join(" · ").slice(0,160);}
 
+
+/* ── Pagination for every admin table ───────────────────────────────────
+   Each .atbl-wrap table with more than ADM_PAGE rows is paged in the browser (the tables of the Activity tab
+   are paged by the server and are skipped). Runs after every repaint of #adm_body; the page you are on is
+   remembered per section and tab, and goes back to 1 when the number of rows changes (filter or search). */
+const ADM_PAGE = 15;
+const _admPg = {};
+let _admObs = null;
+function admPaginate() {
+  const body = $("#adm_body"); if (!body) return;
+  body.querySelectorAll(".atbl-wrap").forEach((w, idx) => {
+    if (w.dataset.pgd || w.hasAttribute("data-server-paged")) return;
+    const tb = w.querySelector("table.atbl tbody"); if (!tb) return;
+    const rows = [...tb.children].filter(r => r.tagName === "TR");
+    w.dataset.pgd = "1";
+    if (rows.length <= ADM_PAGE) return;
+    const key = (state.ADMIN.section || "submissions") + "|" + (state.ADMIN.tab || "") + "|" + idx;
+    const st = _admPg[key] || (_admPg[key] = { page: 1, n: rows.length });
+    if (st.n !== rows.length) { st.page = 1; st.n = rows.length; }
+    const pages = Math.ceil(rows.length / ADM_PAGE);
+    const bar = document.createElement("nav"); bar.className = "pager"; bar.setAttribute("aria-label", "Pages"); bar.dataset.noTrack = "";
+    w.after(bar);
+    const paint = () => {
+      st.page = Math.min(Math.max(st.page, 1), pages);
+      rows.forEach((r, i) => { r.hidden = !(i >= (st.page - 1) * ADM_PAGE && i < st.page * ADM_PAGE); });
+      const nums = []; for (let i = 1; i <= pages; i++) { if (i === 1 || i === pages || Math.abs(i - st.page) <= 1) nums.push(i); else if (nums[nums.length - 1] !== "…") nums.push("…"); }
+      bar.innerHTML = `<span>Showing ${(st.page - 1) * ADM_PAGE + 1}-${Math.min(st.page * ADM_PAGE, rows.length)} of ${rows.length}</span><span class="pg"><button type="button" class="pgb" data-p="${st.page - 1}" ${st.page <= 1 ? "disabled" : ""} aria-label="Previous page">&larr;</button>${nums.map(n => n === "…" ? `<span class="gap">…</span>` : `<button type="button" class="pgb" data-p="${n}" ${n === st.page ? 'aria-current="page"' : ""}>${n}</button>`).join("")}<button type="button" class="pgb" data-p="${st.page + 1}" ${st.page >= pages ? "disabled" : ""} aria-label="Next page">&rarr;</button></span>`;
+      bar.querySelectorAll("button[data-p]").forEach(b => b.onclick = () => { st.page = +b.dataset.p; paint(); });
+    };
+    paint();
+  });
+}
+function admWatch() {
+  const body = $("#adm_body"); if (!body) return;
+  if (_admObs) _admObs.disconnect();
+  let q = 0;
+  _admObs = new MutationObserver(() => { cancelAnimationFrame(q); q = requestAnimationFrame(admPaginate); });
+  _admObs.observe(body, { childList: true, subtree: true });
+  admPaginate();
+}
+
 export function viewAdmin(app){
   if(!LocalStorage.isLoggedIn()){
-    app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Sign in required.</h1><div class="card"><p class="muted">You need to be signed in as an admin to access this page.</p><button class="btn btn-primary" onclick="go('#/login')">Log in</button></div></div></section>`;return;
+    return viewLogin(app,undefined,{admin:true});
   }
   if(!LocalStorage.isAdmin()){
     app.innerHTML=`<section><div class="wrap narrow"><span class="kicker">Admin console</span><h1 class="page-h">Chamber admins only.</h1><div class="card" style="display:flex;gap:14px;align-items:flex-start"><span style="font-size:22px;color:var(--gold-text);display:inline-flex">${ico("lock")}</span><div><b>This area is restricted to chamber staff.</b><p class="muted" style="margin:6px 0 0">Contact the chamber if you believe you should have access.</p></div></div></div></section>`;return;
@@ -51,12 +94,14 @@ export function viewAdmin(app){
       <button class="fbtn adm-tab" data-s="funding" aria-pressed="${state.ADMIN.section==='funding'}" onclick="admSection('funding')">${ico("rocket")} Funding</button>
       <button class="fbtn adm-tab" data-s="members" aria-pressed="${state.ADMIN.section==='members'}" onclick="admSection('members')">${ico("users")} Members</button>
       <button class="fbtn adm-tab" data-s="users" aria-pressed="${state.ADMIN.section==='users'}" onclick="admSection('users')">${ico("user")} Users</button>
+      <button class="fbtn adm-tab" data-s="activity" aria-pressed="${state.ADMIN.section==='activity'}" onclick="admSection('activity')">${ico("eye")} Activity</button>
       <button class="fbtn adm-tab" data-s="subscribers" aria-pressed="${state.ADMIN.section==='subscribers'}" onclick="admSection('subscribers')">${ico("bell")} Subscribers</button>
       <button class="fbtn adm-tab" data-s="contact" aria-pressed="${state.ADMIN.section==='contact'}" onclick="admSection('contact')">${ico("send")} Contact</button>
     </div>
     <div id="adm_body"></div>
   </div></section>`;
   updateAdmToolbar(state.ADMIN.section || 'submissions');
+  admWatch();
   if(!state.ADMIN.loaded)loadAdmin();
   paintAdmin();
 }
@@ -76,6 +121,7 @@ export function admSection(s){
   else if(s==='funding') { _admFundingLoaded=false; paintAdminFunding(); }
   else if(s==='members') { _admMembersLoaded=false; paintAdminMembers(); }
   else if(s==='users') { _admUsersLoaded=false; paintAdminUsers(); }
+  else if(s==='activity') { _admActUser=null; _admActPage=1; paintAdminActivity(); }
   else if(s==='subscribers') { _admSubsLoaded=false; paintAdminSubscribers(); }
   else if(s==='contact') { _admContactLoaded=false; paintAdminContact(); }
   else paintAdmin();
@@ -90,6 +136,7 @@ export function paintAdmin(){
   if(state.ADMIN.section==='funding'){if($("#adm_body"))paintAdminFunding();return;}
   if(state.ADMIN.section==='members'){if($("#adm_body"))paintAdminMembers();return;}
   if(state.ADMIN.section==='users'){if($("#adm_body"))paintAdminUsers();return;}
+  if(state.ADMIN.section==='activity'){if($("#adm_body"))paintAdminActivity();return;}
   if(state.ADMIN.section==='subscribers'){if($("#adm_body"))paintAdminSubscribers();return;}
   if(state.ADMIN.section==='contact'){if($("#adm_body"))paintAdminContact();return;}
   const body=$("#adm_body");if(!body)return;
@@ -951,6 +998,45 @@ function renderAdminUsers() {
     };
   });
 }
+
+/* ── Admin Activity (click tracking of members who agreed) ──────────── */
+
+let _admActUser = null, _admActPage = 1, _admActType = "", _admActQ = "";
+
+export async function paintAdminActivity() {
+  const body = $("#adm_body"); if (!body) return;
+  body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading activity…</b></div></div>`;
+  if (_admActUser) {
+    const d = await _svc.getUserActivity(_admActUser, { type: _admActType, page: _admActPage, limit: 25 });
+    if (state.ADMIN.section !== 'activity') return;
+    if (!d) { _admActUser = null; return paintAdminActivity(); }
+    const u = d.user || {}, pg = d.pagination || { total: 0, page: 1, pages: 1 };
+    body.innerHTML = `
+      <div class="top" style="margin-top:16px"><div><button class="linkish" onclick="admActBack()">&larr; All members</button>
+        <h2 style="margin:6px 0 0;font-size:22px">${esc(u.company || u.name || u.email || "Member")}</h2>
+        <div class="muted">${esc(u.email || "")}${u.country ? " · " + esc(u.country) : ""}${u.sector ? " · " + esc(u.sector) : ""} · ${d.consent && d.consent.status === "granted" ? "tracking on" : "tracking " + esc((d.consent && d.consent.status) || "not set")}</div></div>
+        <div class="roles">${[["","All"],["Page","Pages"],["Link","Links"],["Button","Buttons"],["View","Member views"]].map(([k,l]) => `<button class="fbtn" aria-pressed="${_admActType === k}" onclick="admActType('${k}')">${l}</button>`).join("")}</div></div>
+      ${d.events.length ? `<div class="atbl-wrap" data-server-paged style="margin-top:12px"><table class="atbl"><thead><tr><th>When</th><th>Type</th><th>What</th><th>Page</th></tr></thead><tbody>${d.events.map(e => `<tr style="cursor:default"><td class="when">${esc(fmtDate(e.at))}</td><td><span class="tag">${esc(e.type)}</span></td><td>${esc(e.label || "")}${e.sector ? ` <span class="muted">· ${esc(e.sector)}${e.country ? ", " + esc(e.country) : ""}</span>` : ""}</td><td class="muted">${esc(e.page || "")}</td></tr>`).join("")}</tbody></table></div>`
+        : `<div class="empty" style="margin-top:16px">${ico("eye")} No activity recorded.</div>`}
+      ${pagerHTML(pg.page, pg.pages, pg.total, pg.limit, "admActPage")}`;
+    return;
+  }
+  const r = await _svc.getUserActivitySummary({ q: _admActQ, page: _admActPage, limit: 25 });
+  if (state.ADMIN.section !== 'activity') return;
+  const pg = r.pagination;
+  body.innerHTML = `
+    <div class="top" style="margin-top:16px"><div class="muted"><b>${pg.total}</b> member${pg.total === 1 ? "" : "s"} with recorded activity. Only members who agreed to click tracking appear here.</div>
+      <div class="search" style="max-width:300px"><span class="si">${ico("search")}</span><label class="vh" for="adm_act_q">Search</label><input id="adm_act_q" placeholder="Email, name or company" value="${esc(_admActQ)}"></div></div>
+    ${r.users.length ? `<div class="atbl-wrap" data-server-paged style="margin-top:12px"><table class="atbl"><thead><tr><th>Member</th><th>Company</th><th>Events</th><th>Member views</th><th>Last active</th><th>Consent</th></tr></thead><tbody>${r.users.map(u => `<tr tabindex="0" onclick="admActOpen('${esc(u.user_id)}')" onkeydown="if(event.key==='Enter')admActOpen('${esc(u.user_id)}')"><td><b>${esc(u.name || u.email)}</b><div class="muted" style="font-size:12px">${esc(u.email)}</div></td><td>${esc(u.company)}${u.country ? `<div class="muted" style="font-size:12px">${esc(u.country)}</div>` : ""}</td><td>${u.events}</td><td>${u.views}</td><td class="when">${esc(fmtDate(u.last_at))}</td><td><span class="tag ${u.consent === "granted" ? "green" : ""}">${esc(u.consent || "not set")}</span></td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="empty" style="margin-top:16px">${ico("eye")} No activity recorded yet.</div>`}
+    ${pagerHTML(pg.page, pg.pages, pg.total, pg.limit, "admActPage")}`;
+  const qi = $("#adm_act_q");
+  if (qi) { let tm; qi.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { _admActQ = qi.value.trim(); _admActPage = 1; paintAdminActivity().then(() => { const n = $("#adm_act_q"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }); }, 350); }; }
+}
+export function admActOpen(id) { _admActUser = id; _admActPage = 1; _admActType = ""; paintAdminActivity(); }
+export function admActBack() { _admActUser = null; _admActPage = 1; paintAdminActivity(); }
+export function admActPage(n) { _admActPage = n; paintAdminActivity(); }
+export function admActType(t) { _admActType = t; _admActPage = 1; paintAdminActivity(); }
 
 /* ── Admin Subscribers ───────────────────────────────────────────────── */
 

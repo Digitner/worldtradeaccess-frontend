@@ -32,6 +32,30 @@ function useServices() {
     return [];
   }
 
+  async function getUserActivitySummary({ q, page = 1, limit = 25 } = {}) {
+    try {
+      let url = `${ConfigAPIURL.adminUserActivity}?page=${page}&limit=${limit}`;
+      if (q) url += `&q=${encodeURIComponent(q)}`;
+      const res = await APIRequest.request("GET", url, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return { users: d.users || [], pagination: d.pagination || { total: 0, page: 1, pages: 1 } };
+      toast("Error", d?.message || "Could not load activity.", false);
+    } catch { toast("Error", "Could not load activity.", false); }
+    return { users: [], pagination: { total: 0, page: 1, pages: 1 } };
+  }
+
+  async function getUserActivity(userId, { type, page = 1, limit = 25 } = {}) {
+    try {
+      let url = `${ConfigAPIURL.adminUserActivity}/${encodeURIComponent(userId)}?page=${page}&limit=${limit}`;
+      if (type) url += `&type=${encodeURIComponent(type)}`;
+      const res = await APIRequest.request("GET", url, "");
+      const d = res?.data;
+      if (d?.responseCode === 100) return d;
+      toast("Error", d?.message || "Could not load activity.", false);
+    } catch { toast("Error", "Could not load activity.", false); }
+    return null;
+  }
+
   async function exportSubmissionsCSV() {
     try {
       const res = await fetch(ConfigAPIURL.adminSubmissionsExport, {
@@ -364,7 +388,7 @@ function useServices() {
     return false;
   }
 
-  return { getSubmissions, getUsers, updateUserRole, exportSubmissionsCSV, uploadImage, getNews, createNews, updateNews, deleteNews, getAdRequests, updateAdRequestStatus, getAdProducts, createAdProduct, updateAdProduct, deleteAdProduct, getAdminDeals, updateDealStage, getAdminFunding, updateFundingStatus, getDataRoomDocs, addDataRoomDoc, deleteDataRoomDoc, getPartners, createPartner, updatePartner, deletePartner, getTestimonials, createTestimonial, updateTestimonial, deleteTestimonial, getTrending, createTrending, updateTrending, deleteTrending, getMembers, updateMember, getSubscriptions, deleteSubscription, getContactMessages, updateContactStatus };
+  return { getSubmissions, getUsers, getUserActivitySummary, getUserActivity, updateUserRole, exportSubmissionsCSV, uploadImage, getNews, createNews, updateNews, deleteNews, getAdRequests, updateAdRequestStatus, getAdProducts, createAdProduct, updateAdProduct, deleteAdProduct, getAdminDeals, updateDealStage, getAdminFunding, updateFundingStatus, getDataRoomDocs, addDataRoomDoc, deleteDataRoomDoc, getPartners, createPartner, updatePartner, deletePartner, getTestimonials, createTestimonial, updateTestimonial, deleteTestimonial, getTrending, createTrending, updateTrending, deleteTrending, getMembers, updateMember, getSubscriptions, deleteSubscription, getContactMessages, updateContactStatus };
 }
 
 export default useServices;

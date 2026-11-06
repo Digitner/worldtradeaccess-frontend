@@ -2,7 +2,7 @@
 import { mountCarousels } from '../components/Carousel/Carousel.js';
 import { closeMenu, renderChrome } from '../components/Navbar/navbar.js';
 import { viewAdmin } from '../pages/Admin/Admin.js';
-import { viewAdvertise } from '../pages/Advertise/Advertise.js';
+import { viewActivity } from '../pages/Activity/Activity.js';
 import { viewContact } from '../pages/Contact/Contact.js';
 import { viewDashboard } from '../pages/Dashboard/Dashboard.js';
 import { viewDeal } from '../pages/Deal/Deal.js';
@@ -15,6 +15,8 @@ import { viewMember } from '../pages/Member/Member.js';
 import { viewNews } from '../pages/News/News.js';
 import { viewRegister } from '../pages/Register/Register.js';
 import { viewSearch } from '../pages/Search/Search.js';
+import { viewAbout, viewFaq, viewFor, viewHow, viewMembership, viewNetwork, viewPrivacy, viewSectors } from '../pages/Static/Static.js';
+import { enhance } from './fx.js';
 import { $ } from './helpers.js';
 import { state } from './state.js';
 
@@ -37,11 +39,13 @@ export async function route(soft){
   const [base,arg]=h.slice(2).split("/");
   const app=$("#app");
   renderChrome();
-  const views={"":viewHome,register:viewRegister,login:viewLogin,search:viewSearch,directory:viewDirectory,funding:viewFunding,news:viewNews,advertise:viewAdvertise,admin:viewAdmin,contact:viewContact};
+  const views={"":viewHome,register:viewRegister,login:viewLogin,search:viewSearch,directory:viewDirectory,funding:viewFunding,news:viewNews,about:viewAbout,privacy:viewPrivacy,how:viewHow,sectors:viewSectors,network:viewNetwork,membership:viewMembership,faq:viewFaq,admin:viewAdmin,contact:viewContact};
   if(base==="dashboard")state.USER?await viewDashboard(app):await viewLogin(app,"Log in to view your dashboard.");
   else if(base==="edit")state.USER?await viewEditListing(app):await viewLogin(app);
+  else if(base==="activity")state.USER?await viewActivity(app):await viewLogin(app,"Log in to see your activity.");
+  else if(base==="for")await viewFor(app,arg);
   else if(base==="member")await viewMember(app,arg);
   else if(base==="deal")await viewDeal(app,arg);
   else await (views[base||""]||viewHome)(app,undefined,soft);
-  requestAnimationFrame(mountCarousels);
+  cancelAnimationFrame(window.__rr);window.__rr=requestAnimationFrame(()=>{mountCarousels();enhance(soft);});
 }

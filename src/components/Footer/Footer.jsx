@@ -1,18 +1,32 @@
-import { IMG } from '../../constant/images.js';
-
 export default function Footer() {
   return (
     <footer>
       <div className="wrap">
-        <div className="fr">
+        <div className="foot-mark" id="footMark" aria-hidden="true">WorldTradeAccess</div>
+        <div className="foot-g">
           <div>
-            <img className="logo-img foot-logo" src={IMG.logo} alt="BRICS-ASEAN Chamber of Commerce crest" /><br />
-            <b>WorldTradeAccess</b> — a project for the BRICS-ASEAN Chamber of Commerce<br />
-            Reg. PPM-009-10-22052020 · Kuala Lumpur, Malaysia<br />
-            <button className="linkish" style={{ fontSize: '12.5px', marginTop: '8px' }} onClick={() => window.go('#/admin')}>Admin console →</button>
+            <p style={{ margin: 0 }}>
+              <b style={{ color: '#fff' }}>BRICS-ASEAN Chamber of Commerce</b><br />
+              Reg. PPM-009-10-22052020<br />
+              Kuala Lumpur, Malaysia
+            </p>
+          </div>
+          <div>
+            <h4>Platform</h4>
+            <a href="#/search">Find matches</a>
+            <a href="#/directory">Directory</a>
+            <a href="#/funding">Funding</a>
+            <a href="#/news">News</a>
+          </div>
+          <div>
+            <h4>Chamber</h4>
+            <a href="#/about">About</a>
+            <a href="#/membership">Membership</a>
+            <a href="#/contact">Contact</a>
+            <a href="#/admin">Admin console</a>
           </div>
           <form className="foot-form" onSubmit={(e) => window.subFooter(e)}>
-            <b>Monthly briefing</b>
+            <h4>Monthly briefing</h4>
             <div className="foot-sub">
               <label className="vh" htmlFor="footEmail">Email for the monthly briefing</label>
               <input id="footEmail" type="email" placeholder="you@company.com" />
@@ -20,7 +34,13 @@ export default function Footer() {
             </div>
           </form>
         </div>
-        <p className="disc">Demonstration prototype built by Digitner Tech Solutions. The member network, news and funding listings are synthetic sample data that illustrate the product and do not represent real chamber members. Forms submitted here are stored in this page's shared record so chamber admins can review them. Match answers are written by Claude using the viewer's own account. Photos: Unsplash.</p>
+        <div className="disc">
+          <span>Demonstration prototype built by Digitner Tech Solutions. The member network, news and funding listings are sample data and do not represent real chamber members. Photos: Unsplash.</span>
+          <span className="disc-l">
+            <a href="#/privacy">Privacy</a>
+            <button className="motion-toggle" id="motionToggle" type="button" onClick={() => window.toggleMotion()}></button>
+          </span>
+        </div>
       </div>
     </footer>
   );

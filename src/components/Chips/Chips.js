@@ -4,7 +4,7 @@ import { PILLAR_IC } from '../../constant/pillars.js';
 import { ROLE_META, TYPE_LABEL } from '../../constant/roles.js';
 import { esc, ico } from '../../utils/helpers.js';
 
-export function ccChip(c,cls){return `<span class="cc ${cls||''}" title="${esc(c)}">${esc(CC[c]||"··")}</span>`;}
+export function ccChip(c,cls){const code=CC[c]||(/^[A-Z]{2}$/.test(String(c||""))?c:"··");return `<span class="cc ${cls||''}" title="${esc(c)}">${esc(code)}</span>`;}
 
 export function pIco(p){return ico(PILLAR_IC[p]||"globe");}
 

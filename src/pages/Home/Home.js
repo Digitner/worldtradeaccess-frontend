@@ -4,7 +4,9 @@ import { ccChip, pIco } from '../../components/Chips/Chips.js';
 import { fundRailHTML } from '../../components/FundingCard/FundingCard.js';
 import { mktCardHTML } from '../../components/MarketCard/MarketCard.js';
 import { toast } from '../../components/Toasts/toast.js';
-import { PILLARS, PILLAR_IMG, PILLAR_SUBS } from '../../constant/pillars.js';
+import { PILLARS } from '../../constant/pillars.js';
+import { SITE_MAP } from '../../constant/content.js';
+import { bgVideo, closerHTML, filmHTML } from '../../components/Page/Page.js';
 import { TYPE_LABEL } from '../../constant/roles.js';
 import { $, $$, esc, ico, img, imgTag, photo } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
@@ -14,11 +16,11 @@ import useServices from './hooks/useServices.js';
 const _svc = useServices();
 let _topMembers = [];
 
-export function heroSearch(e){if(e)e.preventDefault();let q=$("#heroQ").value.trim();if(!q){toast("Type what you're looking for","For example: halal snacks distributor in Malaysia",false);$("#heroQ").focus();return;}const cat=$("#heroCat").value;if(cat&&cat!=="All categories")q=cat+": "+q;state.HERO.q=q;state.HERO.role="buy";go("#/search");}
+export function heroSearch(e){if(e)e.preventDefault();const q=$("#heroQ").value.trim();if(!q){toast("Enter what you seek","For example: halal snacks distributor in Malaysia",false);$("#heroQ").focus();return;}state.HERO.q=q;state.HERO.role=$("#heroRole").value;go("#/search");}
 
 export function heroChip(t){$("#heroQ").value=t;heroSearch();}
 
-export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=_topMembers.filter(m=>(m.sector||m.pillar)===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m._id||m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.company_name||m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country)} ${esc(m.country)} · ${TYPE_LABEL[m.goal||m.type]||""}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
+export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=_topMembers.filter(m=>(m.sector||m.pillar)===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m._id||m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.company_name||m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country_name||m.country)} ${esc(m.country_name||m.country)} · ${TYPE_LABEL[m.goal||m.type]||""}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
 
 const FALLBACK_TRENDING = ["halal packaged foods","wheat & edible oils","logistics JV partner","solar EPC","Islamic trade finance","IoT devices OEM"];
 const FALLBACK_PARTNERS = ["Asian Institute of Management","China Construction Bank","Asian Development Bank","BRICS+ Universities Association","SHIELD Group"];
@@ -44,50 +46,33 @@ export async function viewHome(app){
   const finalTestimonials = testimonials.length ? testimonials : FALLBACK_TESTIMONIALS;
   _topMembers = topMembers;
   // Normalize field names for card components
-  const featNorm = feat.map(m => ({ ...m, id: m._id || m.id, name: m.company_name || m.name, type: m.goal || m.type, pillar: m.sector || m.pillar }));
-  const fundNorm = funding.map(f => ({ ...f, id: f._id || f.id, img: f.image_url || f.img, company: f.company_name || f.company, country: f.country || "", desc: f.description || f.desc || "" }));
+  const featNorm = feat.map(m => ({ ...m, id: m._id || m.id, name: m.company_name || m.name, country: m.country_name || m.country, type: m.goal || m.type, pillar: m.sector || m.pillar, spon: m.is_sponsored || m.spon }));
+  const fundNorm = funding.map(f => ({ ...f, id: f._id || f.id, img: f.image_url || f.img, company: f.company_name || f.company, country: f.country_name || f.country || "", desc: f.description || f.desc || "" }));
   app.innerHTML=`
-  <div class="hero" style="${img("kl")?`background-image:url('${esc(img("kl"))}')`:""}">
-    <div class="wrap inner">
-      <div class="hero2">
-        <div>
-          <span class="eyebrow"><span class="dot"></span>BRICS-ASEAN Chamber of Commerce</span>
-          <h1>The global trade platform for the <em>BRICS × ASEAN</em> corridor.</h1>
-          <p class="lede">Source suppliers, find buyers, raise capital and strike JVs across 20+ economies, matched by AI to exactly what you seek.</p>
-          <form class="hsearch" onsubmit="heroSearch(event)" role="search">
-            <label class="vh" for="heroCat">Category</label>
-            <select id="heroCat"><option>All categories</option>${PILLARS.map(p=>`<option>${p}</option>`).join("")}</select>
-            <label class="vh" for="heroQ">What are you looking for?</label>
-            <input id="heroQ" placeholder="e.g. halal snacks distributor in Malaysia">
-            <button type="submit">${ico("sparkle")} Ask AI</button>
-          </form>
-          <div class="trend"><span style="color:#a9b8cf;font-size:12.5px">Trending:</span>${finalTrending.map(t=>`<button class="tc" onclick="heroChip('${esc(t)}')">${esc(t)}</button>`).join("")}</div>
-        </div>
-        <div class="getcard">
-          <div class="serif" style="font-weight:600;font-size:20px">Get started free</div>
-          <p class="muted" style="margin:6px 0 14px">List what you seek in 25 words and let the corridor come to you.</p>
-          <button class="btn btn-primary btn-block" onclick="go('#/register')">${ico("user")} Join as a member <span class="arrow">→</span></button>
-          <button class="btn btn-block" style="margin-top:9px" onclick="go('#/search')">${ico("sparkle")} Try the AI matcher</button>
-          <div style="margin-top:16px;display:flex;flex-direction:column;gap:9px">
-            ${[["shield","Verified chamber members"],["compass","AI intent-matching"],["lock","Facilitated, escrow-ready deals"]].map(([i,t])=>`<div style="display:flex;gap:9px;align-items:center;font-size:13px;color:var(--text-soft)"><span style="color:var(--blue-text);display:inline-flex">${ico(i)}</span>${t}</div>`).join("")}
-          </div>
-        </div>
-      </div>
-      <div class="trustbar">
-        ${[["globe","20+ nations","One connected corridor"],["shield","Verified members","Chamber-registered"],["sparkle","Intent-matched","AI-ranked counterparties"],["handshake","Deal facilitation","Warm introductions"]].map(([i,b,s])=>`<div class="ti2"><span class="ic">${ico(i)}</span><div><b>${b}</b><span>${s}</span></div></div>`).join("")}
-      </div>
+  <div class="hv anim" id="hv">${bgVideo()}
+    <div class="wrap hv-c" id="hvc">
+      <div class="hv-att fadein" style="--i:0">BRICS-ASEAN Chamber of Commerce</div>
+      <h1 aria-label="Trade across the BRICS-ASEAN corridor with the right partner"><span aria-hidden="true"><span class="hl" data-ch>Trade across the</span> <span class="hl" data-ch>BRICS-ASEAN corridor</span> <span class="hl"><span data-ch>with the right</span> <span class="rot" id="rot"><b>partner</b></span></span></span></h1>
+      <p class="lede" data-wf>Find buyers, suppliers, investors, funders and joint-venture partners across more than 20 economies. Say what you seek in 25 words, and AI shows you who fits and why.</p>
+      <form class="hsr fadein" style="--i:12" onsubmit="heroSearch(event)" role="search"><label class="vh" for="heroRole">What you want to do</label><select id="heroRole">${[["buy","I want to source"],["sell","I want to sell"],["capital","I want to raise capital"],["invest","I want to invest"],["jv","I want a JV partner"]].map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select><label class="vh" for="heroQ">What you seek</label><input id="heroQ" placeholder="e.g. halal snacks distributor in Malaysia"><button type="submit">${ico("sparkle")} Find matches</button></form>
+      <div class="trend fadein" style="--i:13;justify-content:center"><span style="color:#a9b8cf;font-size:12.5px">Trending:</span>${finalTrending.map(t=>`<button class="tc" onclick="heroChip('${esc(t)}')">${esc(t)}</button>`).join("")}</div>
+      <div class="hv-cta fadein" style="--i:14"><button onclick="go('#/register')">Create your listing</button></div>
     </div>
+    <div class="cue" aria-hidden="true"></div>
+    <button class="vtoggle" id="vtoggle" aria-label="Pause background video">Pause video</button>
   </div>
+  <div class="stats"><div class="wrap"><div class="stats-g">${[[20,"+","economies across the corridor"],[6,"","sectors, from finance to resources"],[5,"","ways to trade: sell, source, raise, invest or partner"],[25,"","words is all it takes to list what you seek"]].map(([n,s,l])=>`<div class="stat"><b data-count="${n}" data-suf="${s}">${n}${s}</b><span>${l}</span></div>`).join("")}</div></div></div>
+  <div class="mq" aria-hidden="true"><div class="mq-r" id="mq1">${Array(4).fill(["Buyers","Sellers","Investors","Funders","JV partners"].map(x=>`<span>${x}</span>`).join("")).join("")}</div><div class="mq-r" id="mq2">${Array(4).fill(PILLARS.map(x=>`<span>${x}</span>`).join("")).join("")}</div></div>
 
   <section><div class="wrap">
-    <div class="section-h"><h2>Browse by category</h2><button class="linkish" onclick="go('#/directory')">All members →</button></div>
-    <div class="cat-grid">${PILLARS.map(p=>`<button class="cat" onclick="state.DIR.pillar='${p}';go('#/directory')"><span class="ph" style="${img(PILLAR_IMG[p])?`background-image:url('${esc(img(PILLAR_IMG[p]))}')`:""}"><span class="ic">${pIco(p)}</span></span><span class="b"><span class="t" style="display:block">${p}</span><span class="subs" style="display:block">${PILLAR_SUBS[p]}</span></span></button>`).join("")}</div>
+    <div class="section-h"><h2 class="rvh">Explore WorldTradeAccess</h2></div>
+    <nav class="sitemap" aria-label="Pages">${SITE_MAP.map(([h,t,d,im],i)=>`<a class="smap spot" href="${h}" style="--d:${i%4*70}"><span class="im">${imgTag(img(im),"")}</span><b>${t}</b><small>${d}</small></a>`).join("")}</nav>
   </div></section>
 
-  <section style="padding-top:14px"><div class="wrap">
-    <div class="section-h"><h2>Featured members &amp; opportunities</h2><button class="linkish" onclick="go('#/directory')">See all →</button></div>
+  ${featNorm.length?`<section style="padding-top:14px"><div class="wrap">
+    <div class="section-h"><h2>Featured members &amp; opportunities</h2><button class="linkish" onclick="go('#/directory')">See all</button></div>
     ${carousel(featNorm.map(mktCardHTML).join(""),true,"Featured members")}
-  </div></section>
+  </div></section>`:""}
 
   <section><div class="wrap"><div class="split">
     <div class="main">
@@ -98,14 +83,14 @@ export async function viewHome(app){
       </div>
     </div>
     <div class="side">
-      <div class="section-h"><h2>Raising capital now</h2><button class="linkish" onclick="go('#/funding')">View all →</button></div>
+      <div class="section-h"><h2>Raising capital now</h2><button class="linkish" onclick="go('#/funding')">View all</button></div>
       ${carousel(fundNorm.map(fundRailHTML).join(""),true,"Funding opportunities")}
     </div>
   </div></div></section>
 
   <section style="padding-top:8px"><div class="wrap">
     <div class="section-h"><h2>Trusted network</h2></div>
-    <div class="partners">${finalPartners.map(p=>`<span class="partner">${p.logo_url?`<img src="${esc(p.logo_url)}" alt="${esc(p.name)}" style="height:22px;object-fit:contain;vertical-align:middle;margin-right:6px">`:`<span class="pd"></span>`}${p.website?`<a href="${esc(p.website.startsWith('http')?p.website:'https://'+p.website)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(p.name)}</a>`:esc(p.name)}</span>`).join("")}</div>
+    <div class="partners">${finalPartners.map(p=>`<span class="partner">${p.logo_url?`<img src="${esc(p.logo_url)}" alt="${esc(p.name)}" style="height:22px;object-fit:contain;vertical-align:middle;margin-right:6px">`:`<span class="pd"></span>`}${p.website?`<a href="${esc(p.website.startsWith('http')?p.website:'https://'+p.website)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;display:inline">${esc(p.name)}</a>`:esc(p.name)}</span>`).join("")}</div>
   </div></section>
 
   <section style="padding-top:14px"><div class="wrap">
@@ -118,26 +103,11 @@ export async function viewHome(app){
     </div>
   </div></section>
 
-  <section style="padding-top:14px"><div class="wrap">
-    <div class="band">
-      <span class="kicker" style="color:#e2bf72">The model</span>
-      <h2 class="page-h">How it sustains itself.</h2>
-      <p style="max-width:60ch">The matcher is the wedge. Around it, layered revenue, each switched on once the network has liquidity.</p>
-      <div class="rev-grid">
-        ${[["data","Verified data access","Tiered subscriptions for enriched, verified member & intent data."],["mega","Advertising","Sponsored placements, banner & newsletter slots for corridor brands."],["star","Priority placement","Members pay to rank higher in relevant intent matches."],["handshake","Deal commission","A small success fee on facilitated buy/sell & sourcing deals."],["rocket","Capital listings","Curated fundraising & JV listings, a later-stage crowdfunding rail."]].map(([i,t,d])=>`<div class="rev"><div class="ic">${ico(i)}</div><div class="t">${t}</div><div class="d">${d}</div></div>`).join("")}
-      </div>
-      <div style="margin-top:20px"><button class="btn btn-gold" style="background:#d9b262;border-color:#d9b262;color:#2e2206" onclick="go('#/advertise')">See advertising options <span class="arrow">→</span></button></div>
-    </div>
+  <section class="film" id="film"><svg class="lanes" viewBox="0 0 1200 500" preserveAspectRatio="none" aria-hidden="true"><path d="M-20 420 C 240 120, 480 460, 760 180 S 1120 90, 1230 240"/><path d="M-20 90 C 300 300, 520 40, 820 300 S 1100 440, 1230 360"/></svg><div class="wrap">
+    <div class="section-h"><h2 class="rvh">See how it works</h2><button class="linkish" onclick="go('#/how')">Read the five steps</button></div>
+    ${filmHTML()}
   </div></section>
-
-  <section><div class="wrap">
-    <div class="band" style="${img("handshake")?`background:linear-gradient(105deg,rgba(7,24,49,.95),rgba(10,31,61,.8)),url('${esc(img("handshake"))}') center/cover`:""}">
-      <span class="kicker" style="color:#e2bf72">Join the bridge</span>
-      <h2 class="page-h" style="max-width:20ch">List what you seek. Let the corridor come to you.</h2>
-      <p style="max-width:56ch">Free open listings available. BACC &amp; BAICT&amp;E members unlock verified matching and priority placement.</p>
-      <div style="margin-top:18px;display:flex;gap:12px;flex-wrap:wrap"><button class="btn btn-gold" style="background:#d9b262;border-color:#d9b262;color:#2e2206" onclick="go('#/register')">${ico("user")} Create your listing <span class="arrow">→</span></button><button class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="go('#/directory')">${ico("grid")} Browse members</button></div>
-    </div>
-  </div></section>`;
+  ${closerHTML()}`;
   rankTab(PILLARS[0]);
 }
 

@@ -5,13 +5,15 @@ import { reqField } from '../../utils/forms.js';
 import { $, esc, ico, isEmail } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
+import { applyConsentFromForm, consentBlock } from '../../utils/activity.js';
 
-export function viewLogin(app, note) {
+export function viewLogin(app, note, opts) {
+  const admin = !!(opts && opts.admin);
   app.innerHTML = `
-  <section><div class="wrap narrow">
-    <span class="kicker">Member access</span>
-    <h1 class="page-h">Log in.</h1>
-    <p class="page-sub" ${note ? 'style="color:var(--gold-text)"' : ""}>${esc(note || "Access your dashboard, listings and matches.")}</p>
+  <section><div class="wrap narrow auth">
+    <span class="kicker">${admin ? "Admin access" : "Member access"}</span>
+    <h1 class="page-h">${admin ? "Admin log in." : "Log in."}</h1>
+    <p class="page-sub">${esc(note || (admin ? "Chamber staff only. Enter your admin email to get a one-time code." : "Access your dashboard, listings and matches."))}</p>
     <form class="card" style="margin-top:20px" id="loginForm" novalidate>
       <div class="field" id="step_email_wrap">
         <label for="l_email">${ico("mail")}Email <span class="req">*</span></label>
@@ -29,8 +31,9 @@ export function viewLogin(app, note) {
           <button type="button" class="linkish" id="resendOtpBtn" style="font-size:13px">Resend</button>
         </p>
       </div>
+      ${admin ? "" : consentBlock("l_consent", "If you leave it unticked you can still log in as normal.")}
       <button class="btn btn-primary btn-block" id="loginBtn" type="submit" style="margin-top:20px">${ico("mail")} Send code</button>
-      <p class="muted" style="text-align:center;margin-top:12px">No account yet? <button type="button" class="linkish" onclick="go('#/register')">Become a member</button></p>
+      ${admin ? "" : `<p class="muted" style="text-align:center;margin-top:12px">No account yet? <button type="button" class="linkish" onclick="go('#/register')">Become a member</button></p>`}
     </form>
   </div></section>`;
 
@@ -98,6 +101,7 @@ export function viewLogin(app, note) {
       state.USER = result.user;
       const full = await getMe();
       if (full) state.USER = full;
+      applyConsentFromForm("l_consent", "Login form");
       toast("Logged in", "Welcome back.");
       go(state.USER?.role === "admin" ? "#/admin" : "#/dashboard");
     } else {

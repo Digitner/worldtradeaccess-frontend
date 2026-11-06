@@ -75,7 +75,7 @@ export async function viewEditListing(app) {
         <div class="field"><label for="e_role">${ico("briefcase")}Designation</label><input id="e_role" value="${esc(user.designation || user.role_t || "")}"></div>
         <div class="field"><label for="e_email">${ico("mail")}Email</label><input id="e_email" type="email" value="${esc(user.email || "")}"><div class="err-msg">Enter a valid email</div><div class="err-msg" id="e_email_dup" role="alert">This email is already registered to another account.</div></div>
         <div class="field"><label for="e_phone">${ico("phone")}Phone</label><input id="e_phone" value="${esc(user.phone || "")}"><div class="err-msg" id="e_phone_dup" role="alert">This phone number is already registered.</div></div>
-        <div class="field"><label for="e_country">${ico("pin")}Country</label><select id="e_country">${COUNTRIES.map(([c]) => `<option ${c === (user.country) ? "selected" : ""}>${c}</option>`).join("")}</select></div>
+        <div class="field"><label for="e_country">${ico("pin")}Country</label><select id="e_country">${COUNTRIES.map(([c]) => `<option ${c === (user.country_name || user.country) ? "selected" : ""}>${c}</option>`).join("")}</select></div>
         <div class="field"><label for="e_pillar">${ico("grid")}Sector</label><select id="e_pillar">${PILLARS.map(p => `<option ${p === (user.sector || user.pillar) ? "selected" : ""}>${p}</option>`).join("")}</select></div>
       </div>
       <div class="err-msg" id="e_dupAlert" role="alert" style="margin-top:12px;font-size:13.5px"></div>
