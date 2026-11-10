@@ -53,5 +53,7 @@ export const ICONS={
  filter:'<path d="M3 5h18l-7 8v6l-4 2v-8z"/>',
  ship:'<path d="M3 17l2 4h14l2-4M5 17V11h14v6M9 11V6h6v5M12 3v3"/><path d="M2 21c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1"/>',
  leaf:'<path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15M5 19l7-7"/>',
- cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 9v6"/>'
+ cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 9v6"/>',
+ thumbUp:'<path d="M7 21V10l4.2-7a2 2 0 0 1 2.8 2.1l-.9 4.9h5.3a2 2 0 0 1 2 2.4l-1.6 7.1a2 2 0 0 1-2 1.5z"/><path d="M7 10H4v11h3"/>',
+ thumbDown:'<path d="M17 3v11l-4.2 7a2 2 0 0 1-2.8-2.1l.9-4.9H5.6a2 2 0 0 1-2-2.4l1.6-7.1A2 2 0 0 1 7.2 3z"/><path d="M17 14h3V3h-3"/>'
 };

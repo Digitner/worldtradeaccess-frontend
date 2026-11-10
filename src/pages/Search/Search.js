@@ -9,7 +9,6 @@ import useServices from './hooks/useServices.js';
 import { $, $$, bold, esc, ico, imgTag, photo, wc } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
-import { AI_NAME } from '../../constant/brand.js';
 
 export function quickSearch(q, role) { state.HERO.q = q; state.HERO.role = role || "buy"; go("#/search"); }
 
@@ -24,7 +23,7 @@ export async function viewSearch(app, _a, soft) {
   <section><div class="wrap">
     <span class="kicker">The engine</span>
     <h1 class="page-h">Find your matches.</h1>
-    <p class="page-sub">Pick your goal and describe what you seek. ${AI_NAME} reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
+    <p class="page-sub">Pick your goal and describe what you seek. Claude reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
     <form class="console" style="margin-top:20px" id="searchForm" novalidate>
       <span class="flabel" style="margin-bottom:11px">1 · I am here to…</span>
       <div class="roles" id="s_roles">${Object.entries(ROLE_META).map(([k, v]) => `<button type="button" class="role" data-role="${k}" aria-pressed="${k === state.SR.role}">${ico(v.ic)}${v.label}</button>`).join("")}</div>
@@ -36,7 +35,7 @@ export async function viewSearch(app, _a, soft) {
       <div class="examples" id="s_examples"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
         <button class="btn btn-primary" id="s_run" type="submit">${ico("sparkle")} Find matches <span class="arrow">→</span></button>
-        <span class="engine on" id="s_engine"><span class="live"></span><span>${AI_NAME} answers live</span></span>
+        <span class="engine on" id="s_engine"><span class="live"></span><span>Claude answers live</span></span>
       </div>
     </form>
     <div id="s_results" style="margin-top:24px"></div>
@@ -64,7 +63,7 @@ export async function runSearch() {
   const q = $("#s_intent")?.value.trim(), res = $("#s_results");
   if (!q) { if (res) res.innerHTML = `<div class="empty">${ico("search")} Describe what you're looking for, then run the match.</div>`; if ($("#s_intent")) $("#s_intent").focus(); return; }
   state.SR.busy = true; if ($("#s_run")) $("#s_run").disabled = true;
-  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">${AI_NAME} is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
+  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">Claude is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
 
   const role = state.SR.role;
   const result = await _svc.runMatch({ goal: role, seek: q });
@@ -79,8 +78,12 @@ export async function runSearch() {
         return {
           id: mem._id || mem.id || m.member_id,
           score: m.score || 70,
+          // "exact" = lists what was searched, "related" = only partly fits (older backends send none -> exact)
+          relevance: m.relevance === "related" ? "related" : "exact",
           reason: m.reason || "",
           action: m.action || "Request an introduction.",
+          // Set only where members' past votes changed this result's place (backend: searchLearning.js).
+          learned: m.learned || null,
           m: {
             id: mem._id || mem.id || m.member_id,
             name: mem.company_name || mem.name,
@@ -112,9 +115,106 @@ export async function runSearch() {
 
   // A new search starts a new conversation - clear the transcript and release the in-flight guard, so a
   // follow-up that was still streaming when the member re-searched can't leave the box permanently disabled.
-  state.SR.last = out; state.SR.chat = []; state.SR.chatBusy = false;
-  if (res) renderMatches(res, out);
+  // `votes` is per-search too: these are judgements about THESE results, not standing opinions.
+  state.SR.last = out; state.SR.chat = []; state.SR.chatBusy = false; state.SR.votes = {};
+  if (res) {
+    renderMatches(res, out);
+    revealResults(res);
+  }
   state.SR.busy = false; const btn = $("#s_run"); if (btn) btn.disabled = false;
+}
+
+// After a fresh search, bring the answer (or the results) into view so it is read first and the member cards
+// follow below it. Only moves if it is not already on screen; respects "reduce motion".
+function revealResults(res) {
+  const target = res.querySelector(".answer") || res;
+  const r = target.getBoundingClientRect();
+  if (r.top >= 80 && r.top < window.innerHeight * 0.6) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(() => target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+}
+
+/* ================= FEEDBACK: "was this a good match?" =================
+   The input side of the self-improving search. Each vote is sent to POST /match/:id/feedback, which remembers
+   it against the words of this search; a later search worded similarly is then ranked by what members said
+   (backend: api/controller/services/searchLearning.js). Votes live in state.SR.votes for this search only, so
+   returning to the page still shows what was chosen, and a new search starts with a clean slate. */
+
+const VOTE_THANKS = "Thanks - this shapes the next search.";
+
+/** The two thumb buttons, already reflecting any vote cast on this search. `key` is "answer" or a member id. */
+function voteRow(scope, memberId, label) {
+  const key = scope === "answer" ? "answer" : memberId;
+  const chosen = (state.SR.votes || {})[key] || null;
+  const btn = (dir, icon, title) =>
+    `<button type="button" class="vote ${dir}" data-scope="${scope}"${memberId ? ` data-member="${esc(memberId)}"` : ""}` +
+    ` data-vote="${dir}" aria-pressed="${chosen === dir}" title="${title}">${ico(icon)}<span class="vh">${title}</span></button>`;
+  return `<div class="vote-row${chosen ? " voted" : ""}" data-label="${esc(label)}">
+    <span class="vote-q">${chosen ? VOTE_THANKS : esc(label)}</span>
+    ${btn("up", "thumbUp", scope === "answer" ? "Useful answer" : "Good match")}
+    ${btn("down", "thumbDown", scope === "answer" ? "Not useful" : "Not relevant")}
+  </div>`;
+}
+
+/**
+ * Says so on the card when members' feedback is why this result is here. Only shown for a result feedback
+ * HELPED: a member does not need telling that others voted something down, and saying so on a company's own
+ * card would be gratuitous.
+ */
+function learnedBadge(d) {
+  const l = d.learned;
+  if (!l || !(l.up > 0) || !(l.delta > 0)) return "";
+  const who = `${l.up} member${l.up === 1 ? "" : "s"}`;
+  return `<span class="learned-tag" title="Members who searched for something similar rated this a good match">` +
+    `${ico("thumbUp")} ${l.promoted ? `Added because ${who} rated it a good match` : `Ranked higher by ${who}' feedback`}</span>`;
+}
+
+/** Reflect a vote in one row without re-rendering the results around it. */
+function paintVote(row, chosen, note) {
+  if (!row) return;
+  $$(".vote", row).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vote === chosen)));
+  const q = $(".vote-q", row);
+  if (q) q.textContent = note;
+  row.classList.toggle("voted", !!chosen);
+}
+
+/**
+ * One delegated listener for every thumb on the page. #s_results itself survives each re-render (only its
+ * innerHTML is replaced), so assigning onclick here keeps working for rows drawn later.
+ *
+ * The vote paints immediately and is rolled back if the request fails - a member should never be left unsure
+ * whether their click registered.
+ */
+function wireVotes(res, out) {
+  res.onclick = async (e) => {
+    const b = e.target.closest(".vote");
+    if (!b || b.disabled) return;
+    const { scope, vote: dir } = b.dataset;
+    const memberId = b.dataset.member || null;
+    const key = scope === "answer" ? "answer" : memberId;
+    if (!key || !out.searchId) return;
+
+    if (!state.SR.votes) state.SR.votes = {};
+    const prev = state.SR.votes[key] || null;
+    if (prev === dir) return;                       // already said this, nothing to send
+
+    const row = b.closest(".vote-row");
+    state.SR.votes[key] = dir;
+    paintVote(row, dir, VOTE_THANKS);
+
+    const r = await _svc.sendFeedback({
+      searchId: out.searchId, scope, memberId, vote: dir, guestToken: out.guestToken,
+    });
+
+    if (!r.ok) {
+      if (prev) state.SR.votes[key] = prev; else delete state.SR.votes[key];
+      paintVote(row, prev, prev ? VOTE_THANKS : (row?.dataset.label || ""));
+      toast("Not saved", r.message || "Your feedback couldn't be saved. Try again.", false);
+    } else if (!r.counted) {
+      // Stored, but it will not move any ranking - say so rather than implying it will.
+      paintVote(row, dir, "Thanks - noted.");
+    }
+  };
 }
 
 export function renderMatches(res, out) {
@@ -125,29 +225,37 @@ export function renderMatches(res, out) {
     // They used to be inline onclick="askFollow(state.SR.last.next[i])", which could never fire: `askFollow`
     // did not exist anywhere in the app, and `state` is a module import, not a global an inline handler can
     // see - so clicking a suggestion just threw a ReferenceError into the console.
-    html += `<div class="answer"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif" style="font-size:18px">${AI_NAME}'s answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}</div>`;
+    html += `<div class="answer" role="status" aria-live="polite"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif answer-title">Claude's answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}${out.searchId ? voteRow("answer", null, "Was this answer useful?") : ""}</div>`;
   }
   if (!list.length) {
     // Still offer the follow-up box: with nothing found, "why no matches?" / "what should I change?" is
     // exactly when a member wants to ask something.
-    res.innerHTML = html + `<div class="empty">No strong matches in the network for that one. Try a different sector, goal or one of the examples.</div>` + followUpCard(out);
+    res.innerHTML = html + `<div class="empty">No member in the network matches that yet. Try different words, another goal, or one of the examples.</div>` + followUpCard(out);
     wireFollowUp();
+    wireVotes(res, out);   // the answer above can still be rated even when nothing matched
     return;
   }
-  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600"><span style="color:var(--blue-text)">${list.length}</span> strong ${list.length === 1 ? "match" : "matches"}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by ${AI_NAME}</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div><div class="match-grid">`;
+  const nStrong = list.filter((d) => d.relevance !== "related").length;
+  const nRelated = list.length - nStrong;
+  const countLabel = nStrong
+    ? `<span style="color:var(--blue-text)">${nStrong}</span> strong ${nStrong === 1 ? "match" : "matches"}${nRelated ? ` <span class="muted" style="font-weight:400">+ ${nRelated} related</span>` : ""}`
+    : `<span style="color:var(--blue-text)">${list.length}</span> possible ${list.length === 1 ? "match" : "matches"}`;
+  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600">${countLabel}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by Claude</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div>${nStrong ? "" : `<p class="match-note">No member lists exactly what you searched. These only partly fit, so check each reason before reaching out.</p>`}<div class="match-grid">`;
   list.forEach((d, i) => {
     const m = d.m, sc = Math.round(d.score);
     html += `<article class="match" style="animation-delay:${i * .06}s">${ringHTML(sc)}<div style="flex:1;min-width:0">
       <div class="top" style="gap:10px"><div style="display:flex;gap:11px;align-items:center;min-width:0">${imgTag(photo(m), "", "thumb")}<div style="min-width:0"><h3 class="name">${esc(m.name)}</h3><div class="loc">${ccChip(m.country)} ${esc(m.country)} · ${pIco(m.pillar)} ${esc(m.pillar)}</div></div></div>${typeTag(m.type)}</div>
-      <p class="reason">${bold(d.reason || "")}</p>
+      <p class="reason">${bold(d.reason || "")}</p>${learnedBadge(d)}
       <div class="action"><span class="ic">${ico("arrow")}</span><span>${esc(d.action || "Request an introduction.")}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="go('#/member/${esc(m.id)}')">${ico("handshake")} Request introduction</button><button class="btn btn-sm" onclick="go('#/member/${esc(m.id)}')">${ico("eye")} View profile</button></div>
+      ${out.searchId ? voteRow("member", m.id, "Good match?") : ""}
     </div></article>`;
   });
   html += `</div>`;
   html += followUpCard(out);
   res.innerHTML = html;
   wireFollowUp();
+  wireVotes(res, out);
 }
 
 /* ================= FOLLOW-UP CHAT =================
@@ -203,11 +311,41 @@ function paintSuggestions() {
   box.style.display = left.length ? "" : "none";
 }
 
+// Turns the assistant's short markdown (**bold**, "- " bullets, "1." lists) into safe HTML. Everything is escaped
+// first (bold() runs esc()), so a reply can never inject markup - only these few patterns become tags.
+function richText(s) {
+  const inline = (t) => bold(t.trim()).replace(/\*\*/g, "");      // stray unpaired ** are dropped
+  let html = "", list = null;
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of String(s || "").replace(/\r/g, "").split("\n")) {
+    const line = raw.trim();
+    let m;
+    if (!line) { close(); continue; }
+    if ((m = line.match(/^[-*•]\s+(.*)$/))) {
+      if (list !== "ul") { close(); html += "<ul>"; list = "ul"; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else if ((m = line.match(/^\d+[.)]\s+(.*)$/))) {
+      if (list !== "ol") { close(); html += "<ol>"; list = "ol"; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else {
+      close();
+      html += `<p>${inline(line.replace(/^#{1,6}\s+/, ""))}</p>`;
+    }
+  }
+  close();
+  return html;
+}
+
+function aiBubbleBody(text) {
+  return `<span class="bubble-who">${ico("sparkle")} Claude</span><div class="bubble-body">${text ? richText(text) : `<p class="muted">Thinking…</p>`}</div>`;
+}
+
 export function renderChat() {
   const log = $("#chatLog");
   if (!log) return;
-  log.innerHTML = (state.SR.chat || []).map((t, i) =>
-    `<div class="bubble ${t.role === "user" ? "me" : "ai"}"${t.role === "assistant" ? ` id="bub${i}"` : ""}>${esc(t.content || "Thinking…")}</div>`
+  log.innerHTML = (state.SR.chat || []).map((t, i) => t.role === "user"
+    ? `<div class="bubble me">${esc(t.content)}</div>`
+    : `<div class="bubble ai" id="bub${i}">${aiBubbleBody(t.content)}</div>`
   ).join("");
   log.scrollTop = log.scrollHeight;
 }
@@ -239,7 +377,7 @@ export async function askFollow(question) {
         state.SR.chat[idx].content = text;
         const bubble = $("#bub" + idx);
         if (bubble) {
-          bubble.textContent = text;
+          bubble.innerHTML = aiBubbleBody(text);
           const log = $("#chatLog");
           if (log) log.scrollTop = log.scrollHeight;
         }

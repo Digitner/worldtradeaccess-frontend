@@ -107,6 +107,37 @@ function useServices() {
     return full;
   };
 
+  /**
+   * Thumbs up / down on one search result, or on the answer above them.
+   *
+   * This is what makes the search improve: the backend remembers the vote against the WORDS of this search,
+   * and ranks later searches worded similarly by it (api/controller/services/searchLearning.js). The vote is
+   * therefore tied to the stored search it was cast on, which a guest proves is theirs with the token POST
+   * /match handed back - the same rule the follow-up chat uses.
+   *
+   * Resolves to { ok, counted, message } and never throws: a vote that fails to save must not take down the
+   * results the member is reading. `counted` is false when the vote was stored but will not shape rankings
+   * (a guest, or a member rating their own listing).
+   */
+  const sendFeedback = async ({ searchId, scope, memberId, vote, guestToken }) => {
+    if (!searchId) return { ok: false };
+    try {
+      const body = { scope, vote };
+      if (memberId) body.member_id = memberId;
+      if (guestToken) body.guest_token = guestToken;
+      const response = await APIRequest.request(
+        "POST",
+        `${ConfigAPIURL.match}/${searchId}/feedback`,
+        JSON.stringify(body)
+      );
+      const d = response?.data;
+      if (d?.responseCode === 100) return { ok: true, counted: d.counted !== false, message: d.message };
+      return { ok: false, message: d?.message };
+    } catch {
+      return { ok: false };
+    }
+  };
+
   const getPopularSearches = async () => {
     try {
       const response = await APIRequest.request("GET", ConfigAPIURL.searchPopular, "");
@@ -118,7 +149,7 @@ function useServices() {
     }
   };
 
-  return { runMatch, followUpChat, getPopularSearches };
+  return { runMatch, followUpChat, sendFeedback, getPopularSearches };
 }
 
 export default useServices;
