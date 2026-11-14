@@ -164,9 +164,10 @@ function voteRow(scope, memberId, label) {
 function learnedBadge(d) {
   const l = d.learned;
   if (!l || !(l.up > 0) || !(l.delta > 0)) return "";
-  const who = `${l.up} member${l.up === 1 ? "" : "s"}`;
+  const who = `${l.up} member${l.up === 1 ? "" : "s"}`;              // "1 member"   / "3 members"
+  const whose = l.up === 1 ? "1 member's" : `${l.up} members'`;      // "1 member's" / "3 members'"
   return `<span class="learned-tag" title="Members who searched for something similar rated this a good match">` +
-    `${ico("thumbUp")} ${l.promoted ? `Added because ${who} rated it a good match` : `Ranked higher by ${who}' feedback`}</span>`;
+    `${ico("thumbUp")} ${l.promoted ? `Added because ${who} rated it a good match` : `Ranked higher by ${whose} feedback`}</span>`;
 }
 
 /** Reflect a vote in one row without re-rendering the results around it. */
