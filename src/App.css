@@ -376,8 +376,18 @@ body.wta-admin-mode #root > nav,body.wta-admin-mode #root > footer{display:none!
 .vote .ico{width:16px;height:16px}
 .vote:hover{color:var(--text);border-color:color-mix(in srgb,var(--blue) 45%,var(--line));transform:translateY(-1px)}
 .vote:focus-visible{outline:2px solid var(--blue-bright);outline-offset:2px}
-.vote[aria-pressed="true"].up{color:var(--vote-yes);border-color:color-mix(in srgb,var(--vote-yes) 50%,transparent);background:color-mix(in srgb,var(--vote-yes) 12%,var(--surface))}
-.vote[aria-pressed="true"].down{color:var(--vote-no);border-color:color-mix(in srgb,var(--vote-no) 50%,transparent);background:color-mix(in srgb,var(--vote-no) 12%,var(--surface))}
+/* The chosen vote fills in solid - green for good, red for not relevant - so the answer reads at a glance
+   instead of as a faint tint. These two fills are the same in light and dark mode on purpose: they sit
+   between the two page backgrounds, so one white icon stays legible on either without a second pair of
+   tokens to keep in sync. (--vote-yes / --vote-no above stay as they are - the learned badge uses them as
+   text on a tint, which needs the per-theme versions.) */
+:root{--vote-yes-fill:#1a8a63;--vote-no-fill:#c0392b}
+.vote[aria-pressed="true"]{color:#fff;animation:votePop .22s ease-out}
+.vote[aria-pressed="true"].up,.vote[aria-pressed="true"].up:hover{background:var(--vote-yes-fill);border-color:var(--vote-yes-fill);color:#fff}
+.vote[aria-pressed="true"].down,.vote[aria-pressed="true"].down:hover{background:var(--vote-no-fill);border-color:var(--vote-no-fill);color:#fff}
+.vote[aria-pressed="true"]:hover{transform:none}
+@keyframes votePop{0%{transform:scale(.82)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.vote[aria-pressed="true"]{animation:none}}
 .vote-row.voted .vote[aria-pressed="false"]{opacity:.38}
 .answer .vote-row{margin-top:16px;border-top-color:color-mix(in srgb,var(--blue) 25%,transparent)}
 .answer .vote-q{font-size:13px;color:var(--text-soft)}
