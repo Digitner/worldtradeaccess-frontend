@@ -9,6 +9,11 @@ import { state } from '../../utils/state.js';
 
 const _svc = useServices();
 
+/**
+ * Render the deal page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ * @param {string} id record id
+ */
 export async function viewDeal(app, id) {
   app.innerHTML = `<section><div class="wrap narrow"><div class="loading-shimmer" style="height:300px;border-radius:12px;margin-top:24px"></div></div></section>`;
 

@@ -8,18 +8,47 @@ import { state } from '../../utils/state.js';
 /* Shared fragments for the static pages and the home explorer. */
 export function bgVideo(){return `<video data-bg muted loop playsinline preload="auto" poster="${POSTER.hero}" aria-hidden="true"></video>`;}
 
+/**
+ * Heading block (kicker, title, subtitle) for static pages.
+ * @param {string} k key
+ * @param {string} h heading
+ * @param {string} s value
+ */
 export function pageHead(k,h,s){return `<section><div class="wrap"><span class="kicker">${k}</span><h1 class="page-h">${h}</h1><p class="page-sub">${s}</p></div></section>`;}
 
+/**
+ * Closing call-to-action section HTML.
+ * @returns {string}
+ */
 export function closerHTML(){return `<div class="cv">${bgVideo()}<div class="wrap"><h2 class="rvh">List what you seek. Let the right partners find you.</h2><p>Start with a free listing. It takes one short statement.</p><div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"><button class="btn" onclick="go('#/register')">Create your listing</button><button class="btn ghost" onclick="go('#/contact')">Contact the chamber</button></div></div></div>`;}
 
+/**
+ * Audience tab bar HTML with the current tab marked.
+ * @param {string} cur current key
+ */
 export function forTabs(cur){return `<div class="tabs" id="audTabs">${AUD.map(a=>`<a href="#/for/${a.k}" class="${a.k===cur?"cur":""}" ${a.k===cur?'aria-current="page"':""}>${FOR_T[a.k]}</a>`).join("")}<span class="tab-ind" id="tabInd"></span></div>`;}
 
+/**
+ * Audience panel HTML for tab i.
+ * @param {number} i index
+ */
 export function audPanel(i){const a=AUD[i];return `<div class="panel" role="tabpanel"><div><h3>${a.h}</h3><p>${a.p}</p><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul><button class="btn btn-primary linebtn" onclick="quickSearch('${a.q}','${a.k}')">${a.c}</button></div><div class="figimg">${imgTag(img(a.img),"")}</div></div>`;}
 
+/**
+ * Open/close one FAQ item.
+ * @param {HTMLElement} b button element
+ */
 export function faqToggle(b){const i=b.parentElement,o=i.classList.toggle("open");b.setAttribute("aria-expanded",String(o));}
 
+/**
+ * Scroll-linked explainer effect.
+ */
 export function scrollFilm(){const f=document.querySelector("#film");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});}
 
+/**
+ * Explainer video block HTML.
+ * @returns {string}
+ */
 export function filmHTML(){const R=["Interest sent","Data room","Intro call","Due diligence","Term sheet","Closed"];
 return `<div class="film-g"><div><div class="player" id="player" role="img" aria-label="Animated explainer of how WorldTradeAccess works. The text beside it describes each part."><div class="st-stage" id="stStage">
   <div class="st-s" data-s="s1"><canvas id="stGlobe" style="position:absolute;left:0;top:0"></canvas><div class="st-a-w" style="position:absolute;left:72px;top:248px;width:560px"><div class="st-h st-a">More than twenty economies.</div><div class="st-h st-b" style="color:#E2BE73;margin-top:10px">One trade corridor.</div></div></div>
@@ -31,6 +60,14 @@ return `<div class="film-g"><div><div class="player" id="player" role="img" aria
   <div class="st-fade"></div></div>
   <button class="st-toggle" id="stToggle" type="button" aria-label="Pause animation"></button></div></div><div><ol class="chap" id="chap">${FILM_CH.map(([t,l],i)=>`<li><button data-t="${t}" class="${i?"":"on"}">${l}</button></li>`).join("")}</ol><details class="transcript"><summary>Read the text</summary><p>More than twenty economies. One trade corridor. Step 1: say what you seek, in 25 words. Step 2: see who fits, and why. Step 3: move from first interest to a closed deal, through interest sent, data room, intro call, due diligence, term sheet and closed. Built for buyers, sellers, investors, funders and JV partners. List what you seek. Find who fits.</p></details></div></div>`;}
 
+/**
+ * Open the directory filtered to a sector.
+ * @param {string} p value
+ */
 export function pillarGo(p){Object.assign(state.DIR,{pillar:p,q:"",country:"all",type:"all"});go("#/directory");}
 
+/**
+ * Open the directory filtered to a country.
+ * @param {string} c country/code
+ */
 export function countryGo(c){Object.assign(state.DIR,{pillar:"all",q:"",country:c,type:"all"});go("#/directory");}

@@ -16,6 +16,16 @@ class ConfigAPIURL {
   static refreshToken     = `${this.baseUrl}/api/auth/refresh`;
   static sendOtp          = `${this.baseUrl}/api/auth/send-otp`;
   static verifyOtp        = `${this.baseUrl}/api/auth/verify-otp`;
+  // OTP sign-up and new-device login
+  static registerSendOtp   = `${this.baseUrl}/api/auth/register/send-otp`;
+  static registerVerifyOtp = `${this.baseUrl}/api/auth/register/verify-otp`;
+  static registerComplete  = `${this.baseUrl}/api/auth/register/complete`;
+  static loginVerifyOtp    = `${this.baseUrl}/api/auth/login/verify-otp`;
+  static forgotPasswordOtp = `${this.baseUrl}/api/auth/password/forgot`;
+  static resetPasswordOtp  = `${this.baseUrl}/api/auth/password/reset`;
+  static setPassword       = `${this.baseUrl}/api/me/set-password`;
+  static loginStart        = `${this.baseUrl}/api/auth/login/start`;
+  static resendOtp         = `${this.baseUrl}/api/auth/otp/resend`;
 
   // Me (member self)
   static me               = `${this.baseUrl}/api/me`;

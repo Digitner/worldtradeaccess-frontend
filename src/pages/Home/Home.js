@@ -16,10 +16,23 @@ import useServices from './hooks/useServices.js';
 const _svc = useServices();
 let _topMembers = [];
 
+/**
+ * Home hero search submit: go to the matcher with the typed intent.
+ * @param {Event} e DOM event
+ */
 export function heroSearch(e){if(e)e.preventDefault();const q=$("#heroQ").value.trim();if(!q){toast("Enter what you seek","For example: halal snacks distributor in Malaysia",false);$("#heroQ").focus();return;}state.HERO.q=q;state.HERO.role=$("#heroRole").value;go("#/search");}
 
+/**
+ * Home hero example chip: fill the search box.
+ * @param {string} t type/tab key
+ */
 export function heroChip(t){$("#heroQ").value=t;heroSearch();}
 
+/**
+ * Switch the home ranking tab.
+ * @param {string} p value
+ * @param {HTMLElement} btn clicked button
+ */
 export function rankTab(p,btn){if(btn)$$("#rankTabs .fbtn").forEach(x=>x.setAttribute("aria-pressed",String(x===btn)));const list=_topMembers.filter(m=>(m.sector||m.pillar)===p).slice(0,5);$("#rankGrid").innerHTML=list.length?list.map((m,i)=>`<button class="rankrow" onclick="go('#/member/${esc(m._id||m.id)}')"><span class="rnk">${i+1}</span>${imgTag(photo(m),"")}<span style="flex:1;min-width:0"><span class="mkt-name" style="display:block;font-size:14.5px">${esc(m.company_name||m.name)}</span><span class="mkt-loc" style="margin:2px 0 0">${ccChip(m.country_name||m.country)} ${esc(m.country_name||m.country)} · ${TYPE_LABEL[m.goal||m.type]||""}</span></span><span class="muted">${ico("arrow")}</span></button>`).join(""):'<p class="muted" style="padding:12px 6px">No members in this category yet.</p>';}
 
 const FALLBACK_TRENDING = ["halal packaged foods","wheat & edible oils","logistics JV partner","solar EPC","Islamic trade finance","IoT devices OEM"];
@@ -30,6 +43,10 @@ const FALLBACK_TESTIMONIALS = [
   { quote: "As a fund, inbound quality is the whole game. WorldTradeAccess sends us deals that fit our thesis and geography.", name: "Omar Rashid", company: "Gulf Bridge Capital, UAE", initials: "OR" },
 ];
 
+/**
+ * Render the home page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewHome(app){
   // Load API data in parallel
   const [feat, topMembers, funding, partners, testimonials, trendingKws] = await Promise.all([

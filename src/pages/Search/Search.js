@@ -9,6 +9,7 @@ import useServices from './hooks/useServices.js';
 import { $, $$, bold, esc, ico, imgTag, photo, wc } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
 import { state } from '../../utils/state.js';
+import { decorateForm, validateField, FIELD_KIND } from '../../utils/fields.js';
 
 export function quickSearch(q, role) { state.HERO.q = q; state.HERO.role = role || "buy"; go("#/search"); }
 
@@ -27,11 +28,11 @@ export async function viewSearch(app, _a, soft) {
     <form class="console" style="margin-top:20px" id="searchForm" novalidate>
       <span class="flabel" style="margin-bottom:11px">1 · I am here to…</span>
       <div class="roles" id="s_roles">${Object.entries(ROLE_META).map(([k, v]) => `<button type="button" class="role" data-role="${k}" aria-pressed="${k === state.SR.role}">${ico(v.ic)}${v.label}</button>`).join("")}</div>
-      <label class="flabel" for="s_intent" style="margin:20px 0 11px">2 · Describe it, in 25 words</label>
-      <div style="position:relative">
+      <div class="field" style="position:relative;margin-top:20px">
+      <label class="flabel" for="s_intent" style="margin:0 0 4px">2 · Describe it, in 25 words</label>
         <textarea id="s_intent" maxlength="320" placeholder="e.g. Mid-size food-processing SME in Kerala seeking a halal-certified snacks distributor in Malaysia and Indonesia.">${esc(preIntent)}</textarea>
         <span class="wordcount" id="s_wc" style="position:absolute;right:12px;bottom:10px;background:var(--surface);padding:2px 7px;border-radius:6px">0 words</span>
-      </div>
+      <div class="err-msg">Describe what you're looking for</div></div>
       <div class="examples" id="s_examples"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
         <button class="btn btn-primary" id="s_run" type="submit">${ico("sparkle")} Find matches <span class="arrow">→</span></button>
@@ -43,6 +44,7 @@ export async function viewSearch(app, _a, soft) {
 
   $("#s_roles").onclick = e => { const b = e.target.closest(".role"); if (!b) return; state.SR.role = b.dataset.role; $$("#s_roles .role").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderExamples(); };
   const ta = $("#s_intent");
+  decorateForm({ s_intent: { kind: FIELD_KIND.MANDATORY, msg: "Describe what you're looking for" } }); // red = required (SOP)
   const updWc = () => { const n = wc(ta.value); $("#s_wc").textContent = n + " word" + (n === 1 ? "" : "s"); $("#s_wc").classList.toggle("warn", n > 25); };
   ta.oninput = updWc; updWc();
   ta.onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") runSearch(); };
@@ -61,7 +63,7 @@ const _svc = useServices();
 export async function runSearch() {
   if (state.SR.busy) return;
   const q = $("#s_intent")?.value.trim(), res = $("#s_results");
-  if (!q) { if (res) res.innerHTML = `<div class="empty">${ico("search")} Describe what you're looking for, then run the match.</div>`; if ($("#s_intent")) $("#s_intent").focus(); return; }
+  if (!q) { validateField("s_intent", FIELD_KIND.MANDATORY, undefined, "Describe what you're looking for"); if (res) res.innerHTML = `<div class="empty">${ico("search")} Describe what you're looking for, then run the match.</div>`; if ($("#s_intent")) $("#s_intent").focus(); return; }
   state.SR.busy = true; if ($("#s_run")) $("#s_run").disabled = true;
   if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">Claude is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
 

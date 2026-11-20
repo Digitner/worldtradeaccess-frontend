@@ -2,6 +2,10 @@
 import ConfigAPIURL from "../../../config/ConfigAPIURL.js";
 import { toast } from "../../../components/Toasts/toast.js";
 
+/**
+ * Service hook: returns the API wrappers this page uses. Each resolves to data (or null on failure) and shows its own error toast.
+ * @returns {Object} API wrapper functions
+ */
 function useServices() {
 
   const getNews = async ({ page = 1, limit = 20 } = {}) => {

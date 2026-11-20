@@ -4,6 +4,10 @@ import APIRequest from '../../utils/APIRequest.js';
 import ConfigAPIURL from '../../config/ConfigAPIURL.js';
 import { $, isEmail } from '../../utils/helpers.js';
 
+/**
+ * Footer newsletter form submit handler.
+ * @param {Event} e DOM event
+ */
 export async function subFooter(e) {
   e.preventDefault();
   const el = $("#footEmail"), v = el.value.trim();

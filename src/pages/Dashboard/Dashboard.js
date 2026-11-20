@@ -14,6 +14,10 @@ import { getRecommendations } from '../../utils/recommend.js';
 import { ringHTML } from '../../components/ScoreRing/ScoreRing.js';
 import { state } from '../../utils/state.js';
 
+/**
+ * Render the dashboard page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewDashboard(app) {
   // Show skeleton while loading
   app.innerHTML = `<section><div class="wrap"><div class="loading-shimmer" style="height:300px;border-radius:12px;margin-top:24px"></div></div></section>`;

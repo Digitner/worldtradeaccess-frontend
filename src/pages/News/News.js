@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { toast } from '../../components/Toasts/toast.js';
 import { NEWS_TOPICS } from '../../constant/news.js';
-import { reqField } from '../../utils/forms.js';
+import { decorateForm, validators, FIELD_KIND } from '../../utils/fields.js';
 import useServices from './hooks/useServices.js';
 import { $, $$, esc, ico, img, imgTag, isEmail } from '../../utils/helpers.js';
 import { state } from '../../utils/state.js';
@@ -9,6 +9,10 @@ import { PILLAR_IMG } from '../../constant/pillars.js';
 
 const _svc = useServices();
 
+/**
+ * Render the news page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewNews(app) {
   app.innerHTML = `
   <section><div class="wrap">
@@ -21,7 +25,7 @@ export async function viewNews(app) {
         <form class="card" id="alertForm" novalidate>
           <h2 style="font-size:18px;margin:0 0 4px;display:flex;gap:8px;align-items:center"><span style="color:var(--blue-text);display:inline-flex">${ico("bell")}</span>News alerts</h2>
           <p class="muted" style="margin:0 0 14px">Get briefings matched to the sectors you care about.</p>
-          <div class="field" style="margin-bottom:12px"><label for="na_email">${ico("mail")}Email <span class="req">*</span></label><input id="na_email" type="email" value="${state.USER ? esc(state.USER.email || "") : ""}" placeholder="you@company.com"><div class="err-msg">Enter a valid email, like name@company.com</div></div>
+          <div class="field" style="margin-bottom:12px"><label for="na_email">${ico("mail")}Email</label><input id="na_email" type="email" value="${state.USER ? esc(state.USER.email || "") : ""}" placeholder="you@company.com"><div class="err-msg">Enter a valid email, like name@company.com</div></div>
           <fieldset style="border:none;padding:0;margin:0"><legend class="flabel" style="margin-bottom:6px">Topics</legend>
             <div style="display:flex;flex-direction:column;gap:8px">${NEWS_TOPICS.map((t, i) => `<label style="display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer"><input type="checkbox" class="na_topic" id="na_t${i}" value="${esc(t)}" style="width:18px;min-height:18px;height:18px" ${i < 2 ? "checked" : ""}> ${esc(t)}</label>`).join("")}</div>
           </fieldset>
@@ -42,9 +46,11 @@ export async function viewNews(app) {
     }
   }
 
+  // Colour-coding + validation (SOP).
+  const alertSpec = decorateForm({ na_email: { kind: FIELD_KIND.MANDATORY, rule: validators.email, msg: "Enter a valid email" } });
   $("#alertForm").onsubmit = async (e) => {
     e.preventDefault();
-    if (!reqField("na_email", isEmail)) return;
+    if (!alertSpec.validate()) return;
     const topics = $$(".na_topic").filter(c => c.checked).map(c => c.value);
     if (!topics.length) { toast("Select topics", "Choose at least one topic to subscribe.", false); return; }
     const btn = $("#alertBtn"); btn.disabled = true; btn.textContent = "Subscribing…";
@@ -59,6 +65,11 @@ export async function viewNews(app) {
   };
 }
 
+/**
+ * Expand/collapse a news article.
+ * @param {string} id record id
+ * @param {HTMLElement} btn clicked button
+ */
 export function toggleNews(id, btn) {
   const el = document.getElementById("nb_" + id);
   if (!el) return;

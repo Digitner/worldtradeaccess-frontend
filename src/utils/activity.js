@@ -19,6 +19,9 @@ const KEY_ACTIVITY = "wta_activity_v1";
 const KEY_CONSENT = "wta_consent_v1";
 let SERVER_FAILS = 0, LAST_PULL = 0;
 const srvOff = () => { try { return sessionStorage.getItem("wta_act_srv") === "off"; } catch (e) { return false; } };
+/**
+ * Stop syncing activity to the server after a failure (local only).
+ */
 function markServerOff() { try { sessionStorage.setItem("wta_act_srv", "off"); } catch (e) {} }
 const canSync = () => !srvOff() && !!currentUser() && !!(typeof localStorage !== "undefined" && localStorage.getItem("wta_token"));
 
@@ -27,17 +30,49 @@ export const PAGE_NAME = { "": "Home", search: "Find matches", directory: "Direc
 let ACTIVITY = load(KEY_ACTIVITY, []).filter(e => Date.now() - e.at < ACTIVITY_DAYS * 864e5);
 let TRACK_QUEUE = [];
 
+/**
+ * Current logged-in user from state.
+ */
 export function currentUser() { return state.USER || LocalStorage.userDetails || null; }
+/**
+ * Stable account id string for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function acctId(u) { u = u || currentUser(); return String((u && (u.email || u._id || u.id)) || "").trim().toLowerCase(); }
+/**
+ * Display name for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function userLabel(u) { u = u || currentUser() || {}; return u.contact_person || u.person || u.company_name || u.name || ""; }
+/**
+ * Company name for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function userCompany(u) { u = u || currentUser() || {}; return u.company_name || u.name || ""; }
 
 /* ---------- consent ---------- */
 function consents() { return load(KEY_CONSENT, {}); }
+/**
+ * Stored activity-consent record for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function consentOf(u) { const id = acctId(u); return id ? consents()[id] || null : null; }
+/**
+ * "granted", "declined", "withdrawn" or "none" for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function consentState(u) { const c = consentOf(u); if (!c || c.version !== NOTICE_VERSION) return "unset"; return c.status; }
+/**
+ * True only when the current user has granted activity tracking.
+ */
 export function trackingOn() { return !!currentUser() && consentState() === "granted"; }
 
+/**
+ * Record a consent decision and sync it.
+ * @param {string} status status value
+ * @param {string} method how consent was given
+ * @param {object} u user record (defaults to the current user)
+ */
 export function setConsent(status, method, u) {
   const id = acctId(u); if (!id) return;
   if (status !== "granted") flushActivity(true);
@@ -50,12 +85,20 @@ export function applyConsentFromForm(checkboxId, method) {
   const was = consentState(), agreed = box.checked;
   if (was !== "granted" && (agreed || was === "unset")) setConsent(agreed ? "granted" : "declined", method);
 }
+/**
+ * Consent toggle from the dashboard.
+ * @param {string} status status value
+ */
 export function dashConsent(status) {
   setConsent(status, "Dashboard");
   toast(status === "granted" ? "Click tracking on" : "Click tracking off", status === "granted" ? "You can stop it at any time." : "Nothing more will be recorded.");
   route(true);
 }
 
+/**
+ * HTML of the activity-tracking notice.
+ * @returns {string}
+ */
 export function noticeHTML() {
   return `<dl class="notice">
   <dt>What we record</dt><dd>The pages you open, and the links and buttons you select, with the time and your account. Tracking runs only while you are logged in.</dd>
@@ -66,6 +109,11 @@ export function noticeHTML() {
   <dt>Your choices</dt><dd>Tracking is optional, and saying no doesn't limit your account. You can view your activity, stop tracking or delete your activity at any time from your dashboard. For anything else, <a class="linkish" href="#/contact">contact the chamber</a>.</dd>
 </dl>`;
 }
+/**
+ * Consent checkbox block HTML for forms.
+ * @param {string} id record id
+ * @param {string} note note text
+ */
 export function consentBlock(id, note) {
   return `<div class="consent" id="${id}_box">
   <h3>Your activity on this site</h3>
@@ -82,7 +130,14 @@ export function logActivity(type, label, extra) {
   const ev = { at: Date.now(), type, label: String(label || "").replace(/\s+/g, " ").trim().slice(0, 90), page: location.hash || "#/", acct: acctId(u), email: u.email, name: userLabel(u), company: userCompany(u), ...extra };
   ACTIVITY.unshift(ev); ACTIVITY = ACTIVITY.slice(0, 3000); save(KEY_ACTIVITY, ACTIVITY); TRACK_QUEUE.push(ev);
 }
+/**
+ * The current user's tracked activity entries.
+ */
 export function myActivity() { const id = acctId(); return id ? ACTIVITY.filter(e => e.acct === id).sort((x, y) => y.at - x.at) : []; }
+/**
+ * Send queued activity events to the server.
+ * @param {boolean} leaving true when the page is closing (use sendBeacon)
+ */
 export function flushActivity(leaving) {
   if (!TRACK_QUEUE.length) return;
   const batch = TRACK_QUEUE; TRACK_QUEUE = [];
@@ -131,6 +186,9 @@ export function interests() {
   const top = m => [...m.entries()].sort((a, b) => b[1] - a[1]);
   return { sectors: top(sec), countries: top(cty), goals: top(goal), sec, cty, goal, total: [...sec.values()].reduce((a, b) => a + b, 0) };
 }
+/**
+ * Delete the current user's stored activity.
+ */
 export function deleteMyActivity() {
   const mine = acctId();
   TRACK_QUEUE = TRACK_QUEUE.filter(e => e.acct !== mine);
@@ -138,6 +196,9 @@ export function deleteMyActivity() {
   if (canSync()) APIRequest.request("DELETE", ConfigAPIURL.myActivity, "").catch(() => {});
   toast("Activity deleted", "Your recorded clicks have been removed."); route(true);
 }
+/**
+ * Start click/page tracking (only records when consent is granted).
+ */
 export function initTracking() {
   setInterval(flushActivity, 15000);
   addEventListener("pagehide", () => flushActivity(true));
@@ -158,6 +219,10 @@ export function pageTitle(hash) {
   if (b === "for" && FOR_T[a]) return FOR_T[a];
   return PAGE_NAME[b || ""] || b || "Home";
 }
+/**
+ * One-line consent summary for a user.
+ * @param {object} u user record (defaults to the current user)
+ */
 export function consentLine(u) {
   const c = consentOf(u); return c && c.status === "granted" ? `Click tracking is on, since ${fmtShort(c.at)}` : "Click tracking is off";
 }

@@ -12,6 +12,12 @@ import { state } from '../../utils/state.js';
 const _svc = useServices();
 let _allMembers = [];
 
+/**
+ * Render the directory page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ * @param {*} _a unused route argument
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 export async function viewDirectory(app, _a, soft) {
   if (soft && $("#d_grid")) { paintDir(); return; }
 
@@ -87,6 +93,9 @@ export async function viewDirectory(app, _a, soft) {
   paintDir();
 }
 
+/**
+ * Redraw the directory grid from the current filters.
+ */
 export function paintDir() {
   const D = state.DIR || {};
   const q = (D.q || "").trim().toLowerCase();

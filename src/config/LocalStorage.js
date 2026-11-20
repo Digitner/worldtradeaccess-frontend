@@ -20,6 +20,8 @@ class LocalStorage {
     this.token = null;
     localStorage.removeItem("wta_token");
     localStorage.removeItem("wta_user");
+    localStorage.removeItem("wta_refresh");
+    localStorage.removeItem("wta_session_expires");
   }
 
   static isLoggedIn() {

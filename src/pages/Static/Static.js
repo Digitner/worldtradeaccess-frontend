@@ -23,12 +23,21 @@ async function loadMembers() {
 
 export { faqToggle, pillarGo, countryGo };
 
+/**
+ * Render the how page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewHow(app){
   app.innerHTML=`${pageHead("How it works","From first listing to closed deal.","Five steps take you from registering your business to moving a deal forward.")}
   <section><div class="wrap"><div class="steps"><div class="steps-art" id="stepsArt" aria-hidden="true">${STEPS.map((s,i)=>imgTag(img(s[2]),"",i?"":"on")).join("")}</div><div id="stepsT">${STEPS.map((s,i)=>`<div class="step ${i?"":"on"}" role="button" tabindex="0" aria-expanded="${!i}"><small>Step ${i+1}</small><h3>${s[0]}</h3><div class="step-b"><div><p>${s[1]}</p>${imgTag(img(s[2]),"")}</div></div></div>`).join("")}</div></div></div></section>
   <section class="film" id="film"><svg class="lanes" viewBox="0 0 1200 500" preserveAspectRatio="none" aria-hidden="true"><path d="M-20 420 C 240 120, 480 460, 760 180 S 1120 90, 1230 240"/><path d="M-20 90 C 300 300, 520 40, 820 300 S 1100 440, 1230 360"/></svg><div class="wrap"><div class="section-h"><h2 class="rvh">See it in action</h2></div>${filmHTML()}</div></section>
   ${closerHTML()}`;
 }
+/**
+ * Render the for page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ * @param {string} arg route argument
+ */
 export async function viewFor(app,arg){
   const i=AUD.findIndex(a=>a.k===arg);
   if(i<0){app.innerHTML=`${pageHead("Who it's for","Built around what you want to do.","Choose the page that fits your business.")}
@@ -39,6 +48,10 @@ export async function viewFor(app,arg){
   ${pool.length?`<section><div class="wrap"><div class="section-h"><h2 class="rvh">Who you could meet</h2><button class="linkish" onclick="go('#/directory')">See all members</button></div>${carousel(pool.map(mktCardHTML).join(""),false,"Members you could meet")}</div></section>`:""}
   ${closerHTML()}`;
 }
+/**
+ * Render the sectors page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewSectors(app){
   const all=await loadMembers();
   app.innerHTML=`${pageHead("Sectors","Six sectors, one network.","Choose a sector to see the members and listings in it.")}
@@ -46,6 +59,10 @@ export async function viewSectors(app){
     <div class="sects">${PILLARS.map(p=>`<button class="sect" onclick="pillarGo('${p}')"><div class="im">${imgTag(img(PILLAR_IMG[p]),"")}</div><h3>${p}<small>${all.filter(m=>m.pillar===p).length} listings</small></h3><p>${SECT_D[p]}</p><span class="sb">${PILLAR_SUBS[p]}</span></button>`).join("")}</div>
   </div></section>${closerHTML()}`;
 }
+/**
+ * Render the network page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewNetwork(app){
   app.innerHTML=`${pageHead("Network","A network that spans the corridor.","The platform links BRICS economies, their partners and ASEAN markets.")}
   <section class="reach"><div class="wrap two">
@@ -55,6 +72,10 @@ export function viewNetwork(app){
     </div>
   </div></section>${closerHTML()}`;
 }
+/**
+ * Render the membership page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewMembership(app){
   app.innerHTML=`${pageHead("Membership","Choose how you join.","Start with a free open listing, or join as a member for verified matching.")}
   <section><div class="wrap"><div class="tiers">
@@ -63,6 +84,10 @@ export function viewMembership(app){
     <div class="tier"><h3>Open listing</h3><p>A free public listing for any business that wants to be found.</p><ul><li>Your business listing</li><li>AI matching</li></ul><button class="btn" onclick="go('#/register')">Create a free listing</button></div>
   </div></div></section>`;
 }
+/**
+ * Render the faq page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewFaq(app){
   app.innerHTML=`${pageHead("Questions","Common questions.","Answers about joining, matching and introductions.")}
   <section><div class="wrap narrow"><div class="faq">${FAQ.map(([q,a],i)=>`<div class="faq-i ${i?"":"open"}"><button class="faq-q" aria-expanded="${!i}" onclick="faqToggle(this)">${q}<b aria-hidden="true"></b></button><div class="faq-a"><div><p>${a}</p></div></div></div>`).join("")}</div></div></section>`;
@@ -108,6 +133,10 @@ export function viewAbout(app){
 }
 /* ================= MY ACTIVITY ================= */
 let ACT_FILTER="all";
+/**
+ * Render the privacy page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewPrivacy(app){
   app.innerHTML=`<section><div class="wrap narrow">
     <span class="kicker">Privacy</span>

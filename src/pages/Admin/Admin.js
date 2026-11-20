@@ -1,4 +1,5 @@
-﻿﻿/* eslint-disable */
+﻿/* eslint-disable */
+import { decorateForm, validateField, validators, FIELD_KIND } from '../../utils/fields.js';
 import { toast } from '../../components/Toasts/toast.js';
 import { FORM_KINDS } from '../../constant/forms.js';
 import { $, $$, esc, fmtDate, ico } from '../../utils/helpers.js';
@@ -11,6 +12,9 @@ import { pagerHTML } from '../Activity/Activity.js';
 
 const _svc = useServices();
 
+/**
+ * Load the admin submissions feed from the API into state.ADMIN.
+ */
 export async function loadAdmin(){
   if(!LocalStorage.isAdmin()||state.ADMIN.loading)return;
   state.ADMIN.loading=true;
@@ -24,10 +28,17 @@ export async function loadAdmin(){
   if(curBase()==="admin")paintAdmin();
 }
 
+/**
+ * Rows of the admin submissions feed after the active search/filters.
+ */
 export function adminRows(){
   return state.ADMIN.rows||[];
 }
 
+/**
+ * One-line human summary of a submission row for the admin list.
+ * @param {object} r record
+ */
 export function summarize(r){const d=r.data||{};const pick={register:["company","country","goal","seeking"],login:["email","company"],edit:["company","goal","seeking"],search:["goal","intent","engine"],intro:["toName","message"],funding:["company","type","amount"],deal:["company","stageName","amount"],ad:["format","company","budget"],alerts:["email","topics"],newsletter:["email"],contact:["subject","message"]}[r.kind]||Object.keys(d).slice(0,3);return pick.map(k=>d[k]).filter(Boolean).map(v=>String(v)).join(" · ").slice(0,160);}
 
 
@@ -38,6 +49,9 @@ export function summarize(r){const d=r.data||{};const pick={register:["company",
 const ADM_PAGE = 15;
 const _admPg = {};
 let _admObs = null;
+/**
+ * Add paging controls to the admin table.
+ */
 function admPaginate() {
   const body = $("#adm_body"); if (!body) return;
   body.querySelectorAll(".atbl-wrap").forEach((w, idx) => {
@@ -62,6 +76,9 @@ function admPaginate() {
     paint();
   });
 }
+/**
+ * Re-run the admin table paging whenever its content changes.
+ */
 function admWatch() {
   const body = $("#adm_body"); if (!body) return;
   if (_admObs) _admObs.disconnect();
@@ -71,6 +88,10 @@ function admWatch() {
   admPaginate();
 }
 
+/**
+ * Render the admin page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export function viewAdmin(app){
   if(!LocalStorage.isLoggedIn()){
     return viewLogin(app,undefined,{admin:true});
@@ -106,10 +127,18 @@ export function viewAdmin(app){
   paintAdmin();
 }
 
+/**
+ * Show only the toolbar controls that belong to the current admin section.
+ * @param {string} s value
+ */
 function updateAdmToolbar(s){
   $$(".adm-tab").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === s)));
 }
 
+/**
+ * Switch the admin console to another section (members, news, deals...).
+ * @param {string} s value
+ */
 export function admSection(s){
   state.ADMIN.section = s;
   updateAdmToolbar(s);
@@ -127,6 +156,9 @@ export function admSection(s){
   else paintAdmin();
 }
 
+/**
+ * Render the admin feed table for the current tab and filters.
+ */
 export function paintAdmin(){
   if(state.ADMIN.section==='news'){if($("#adm_body"))paintNewsAdmin();return;}
   if(state.ADMIN.section==='adproducts'){if($("#adm_body"))paintAdProducts();return;}
@@ -171,6 +203,10 @@ export function paintAdmin(){
   $$(".atbl tbody tr").forEach(tr=>{const pick=()=>{state.ADMIN.sel=tr.dataset.id;state.ADMIN.selU=tr.dataset.u;paintAdmin();};tr.onclick=pick;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick();}};});
 }
 
+/**
+ * HTML of the detail panel for one submission row.
+ * @param {object} r record
+ */
 export function adminDetail(r){
   const k=FORM_KINDS[r.kind]||{label:r.kind,ic:"file"};const d=r.data||{};
   const label=s=>s.replace(/_/g," ").replace(/([a-z])([A-Z])/g,"$1 $2");
@@ -185,8 +221,15 @@ export function adminDetail(r){
     </dl></div>`;
 }
 
+/**
+ * Select an admin feed tab and redraw.
+ * @param {string} k key
+ */
 export function admTab(k){state.ADMIN.tab=k;state.ADMIN.sel=null;paintAdmin();}
 
+/**
+ * Download the current admin feed as a CSV file.
+ */
 export async function exportCSV(){
   await _svc.exportSubmissionsCSV();
 }
@@ -199,6 +242,9 @@ const NEWS_CATS = ["Policy Brief","Investor Update","Trade Alert","Market Report
 let _newsArticles = [];
 let _newsEditing = null; // null=list, "new"=new form, article._id=edit form
 
+/**
+ * Load (if needed) and draw the news admin section.
+ */
 export async function paintNewsAdmin() {
   const body = $("#adm_body"); if (!body) return;
   body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading articles…</b></div></div>`;
@@ -208,6 +254,9 @@ export async function paintNewsAdmin() {
   renderNewsSection();
 }
 
+/**
+ * Draw the news section UI from cached data.
+ */
 function renderNewsSection() {
   const body = $("#adm_body"); if (!body) return;
   if (_newsEditing !== null) { renderNewsForm(); return; }
@@ -231,6 +280,9 @@ function renderNewsSection() {
     : `<div class="empty" style="margin-top:24px">${ico("news")} No articles yet. Click "New article" to publish the first one.</div>`}`;
 }
 
+/**
+ * Draw the news form UI from cached data.
+ */
 function renderNewsForm() {
   const body = $("#adm_body"); if (!body) return;
   const a = _newsEditing === "new" ? {} : (_newsArticles.find(x => x._id === _newsEditing) || {});
@@ -298,8 +350,16 @@ function renderNewsForm() {
     }
   };
 
+  // Colour-coding + validation (SOP): red = required, green = optional.
+  const newsSpec = decorateForm({
+    nf_title: { kind: FIELD_KIND.MANDATORY, msg: "Enter a title" },
+    nf_cat: { kind: FIELD_KIND.MANDATORY },
+    nf_excerpt: { kind: FIELD_KIND.OPTIONAL },
+    nf_body: { kind: FIELD_KIND.OPTIONAL },
+  });
   $("#newsForm").onsubmit = async (e) => {
     e.preventDefault();
+    if (!newsSpec.validate()) { toast("Required", "Title and category are required.", false); return; }
     if (_newsImgUploading) { toast("Please wait", "Image is still uploading…", false); return; }
     const title = $("#nf_title").value.trim();
     const category = $("#nf_cat").value;
@@ -321,9 +381,23 @@ function renderNewsForm() {
   };
 }
 
+/**
+ * Open the blank news form.
+ */
 export function newsNew() { _newsEditing = "new"; renderNewsForm(); }
+/**
+ * Open the news form for an existing record.
+ * @param {string} id record id
+ */
 export function newsEdit(id) { _newsEditing = id; renderNewsForm(); }
+/**
+ * Close the news form without saving.
+ */
 export function newsCancel() { _newsEditing = null; renderNewsSection(); }
+/**
+ * Delete a news record (the API call asks the admin to confirm first).
+ * @param {string} id record id
+ */
 export async function newsDel(id) {
   if (!confirm("Delete this article? This cannot be undone.")) return;
   const ok = await _svc.deleteNews(id);
@@ -339,6 +413,10 @@ let _adReqFilter = "all";
 let _adReqLoaded = false;
 let _adReqLoading = false;
 
+/**
+ * Load (if needed) and draw the ad requests section.
+ * @param {boolean} [forceReload] refetch instead of using cache
+ */
 export async function paintAdRequests(forceReload = false) {
   const body = $("#adm_body"); if (!body) return;
   if (_adReqLoading) return;
@@ -353,6 +431,9 @@ export async function paintAdRequests(forceReload = false) {
   renderAdRequests();
 }
 
+/**
+ * Draw the ad requests UI from cached data.
+ */
 function renderAdRequests() {
   const body = $("#adm_body"); if (!body) return;
   const counts = { all: _adRequests.length };
@@ -399,6 +480,10 @@ function renderAdRequests() {
   });
 }
 
+/**
+ * Filter the ad req list by the chosen value and redraw.
+ * @param {string} f filter value
+ */
 export function adReqFilter(f) { _adReqFilter = f; renderAdRequests(); }
 
 /* ── Ad Products management ──────────────────────────────────────────── */
@@ -407,6 +492,9 @@ const AD_PERIODS = ["month", "issue"];
 let _adProducts = [];
 let _adpEditing = null; // null=list, "new"=new, id=edit
 
+/**
+ * Load (if needed) and draw the ad products section.
+ */
 export async function paintAdProducts() {
   const body = $("#adm_body"); if (!body) return;
   body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading ad products…</b></div></div>`;
@@ -416,6 +504,9 @@ export async function paintAdProducts() {
   renderAdProducts();
 }
 
+/**
+ * Draw the ad products UI from cached data.
+ */
 function renderAdProducts() {
   const body = $("#adm_body"); if (!body) return;
   if (_adpEditing !== null) { renderAdProductForm(); return; }
@@ -440,6 +531,9 @@ function renderAdProducts() {
     : `<div class="empty" style="margin-top:24px">${ico("star")} No ad products yet. Add one to populate the Advertise page pricing section.</div>`}`;
 }
 
+/**
+ * Draw the ad product form UI from cached data.
+ */
 function renderAdProductForm() {
   const body = $("#adm_body"); if (!body) return;
   const p = _adpEditing === "new" ? {} : (_adProducts.find(x => x._id === _adpEditing) || {});
@@ -472,8 +566,15 @@ function renderAdProductForm() {
         <button class="btn" type="button" onclick="adpCancel()">Cancel</button>
       </div>
     </form>`;
+  const adpSpec = decorateForm({
+    ap_name: { kind: FIELD_KIND.MANDATORY, msg: "Enter a name" },
+    ap_price: { kind: FIELD_KIND.MANDATORY, rule: (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, msg: "Enter a price of 0 or more" },
+    ap_desc: { kind: FIELD_KIND.OPTIONAL },
+    ap_period: { kind: FIELD_KIND.OPTIONAL },
+  });
   $("#adpForm").onsubmit = async (e) => {
     e.preventDefault();
+    if (!adpSpec.validate()) { toast("Required", "Name and price are required.", false); return; }
     const name = $("#ap_name").value.trim();
     const price_usd = parseFloat($("#ap_price").value);
     if (!name || isNaN(price_usd)) { toast("Required", "Name and price are required.", false); return; }
@@ -493,9 +594,23 @@ function renderAdProductForm() {
   };
 }
 
+/**
+ * Open the blank adp form.
+ */
 export function adpNew() { _adpEditing = "new"; renderAdProductForm(); }
+/**
+ * Open the adp form for an existing record.
+ * @param {string} id record id
+ */
 export function adpEdit(id) { _adpEditing = id; renderAdProductForm(); }
+/**
+ * Close the adp form without saving.
+ */
 export function adpCancel() { _adpEditing = null; renderAdProducts(); }
+/**
+ * Delete a adp record (the API call asks the admin to confirm first).
+ * @param {string} id record id
+ */
 export async function adpDel(id) {
   if (!confirm("Delete this ad product? It will no longer appear on the Advertise page.")) return;
   const ok = await _svc.deleteAdProduct(id);
@@ -510,6 +625,9 @@ let _admDealsLoaded = false;
 let _admDealsLoading = false;
 let _admDealsStageFilter = "";
 
+/**
+ * Load (if needed) and draw the admin deals section.
+ */
 export async function paintAdminDeals() {
   const body = $("#adm_body"); if (!body) return;
   if (_admDealsLoading) return;
@@ -524,6 +642,9 @@ export async function paintAdminDeals() {
   renderAdminDeals();
 }
 
+/**
+ * Draw the admin deals UI from cached data.
+ */
 function renderAdminDeals() {
   const body = $("#adm_body"); if (!body) return;
   const stageCounts = {};
@@ -573,6 +694,10 @@ function renderAdminDeals() {
   });
 }
 
+/**
+ * Filter the deals list by the chosen value and redraw.
+ * @param {string} f filter value
+ */
 export function admDealsFilter(f) { _admDealsStageFilter = f; renderAdminDeals(); }
 
 /* ── Admin Funding ───────────────────────────────────────────────────── */
@@ -588,6 +713,9 @@ let _admFundingStatusFilter = "";
 let _admFundingSelected = null; // listing id currently showing data room
 let _admFundingDocs = [];
 
+/**
+ * Load (if needed) and draw the admin funding section.
+ */
 export async function paintAdminFunding() {
   const body = $("#adm_body"); if (!body) return;
   if (_admFundingLoading) return;
@@ -602,6 +730,9 @@ export async function paintAdminFunding() {
   renderAdminFunding();
 }
 
+/**
+ * Draw the admin funding UI from cached data.
+ */
 function renderAdminFunding() {
   const body = $("#adm_body"); if (!body) return;
   const counts = { all: _admFunding.length };
@@ -650,6 +781,21 @@ function renderAdminFunding() {
   });
 }
 
+/**
+ * Draw the data room panel UI from cached data.
+ * @param {object} listing funding listing record
+ */
+/**
+ * Colour-code the data-room "Add document" fields (red = required). Call after the panel HTML is inserted.
+ * @returns {void}
+ */
+function decorateRoomForm() {
+  decorateForm({
+    adm_doc_title: { kind: FIELD_KIND.MANDATORY },
+    adm_doc_url: { kind: FIELD_KIND.MANDATORY, rule: validators.url, msg: "Paste a valid file URL, like https://…" },
+  });
+}
+
 function renderDataRoomPanel(listing) {
   const docs = _admFundingDocs;
   return `<div class="drawer">
@@ -665,16 +811,22 @@ function renderDataRoomPanel(listing) {
     <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
       <b style="font-size:13px">Add document</b>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-        <select id="adm_doc_title" style="padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px">
+        <div class="field"><label for="adm_doc_title">Document type</label>
+        <select id="adm_doc_title">
           ${DOC_TITLES.map(t => `<option>${esc(t)}</option>`).join("")}
-        </select>
-        <input id="adm_doc_url" placeholder="File URL (https://…)" style="padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px">
+        </select></div>
+        <div class="field"><label for="adm_doc_url">File URL</label>
+        <input id="adm_doc_url" placeholder="File URL (https://…)"><div class="err-msg">Paste a valid file URL, like https://…</div></div>
         <button class="btn btn-sm btn-primary" onclick="admRoomAdd('${esc(listing._id)}')">${ico("rocket")} Add document</button>
       </div>
     </div>
   </div>`;
 }
 
+/**
+ * Open the data room for a funding listing.
+ * @param {string} id record id
+ */
 export async function admFundingOpenRoom(id) {
   _admFundingSelected = id;
   const listing = _admFunding.find(f => f._id === id);
@@ -682,37 +834,53 @@ export async function admFundingOpenRoom(id) {
   const panel = $("#adm_room_panel"); if (!panel) return;
   panel.innerHTML = `<div class="drawer"><div class="muted">${ico("clock")} Loading documents…</div></div>`;
   _admFundingDocs = await _svc.getDataRoomDocs(id);
-  panel.innerHTML = renderDataRoomPanel(listing);
+  { panel.innerHTML = renderDataRoomPanel(listing); decorateRoomForm(); }
 }
 
+/**
+ * Close the data room panel.
+ */
 export function admFundingCloseRoom() {
   _admFundingSelected = null;
   const panel = $("#adm_room_panel"); if (!panel) return;
   panel.innerHTML = `<div class="drawer"><div class="muted">${ico("file")} Click "Docs" on a listing to manage its data room.</div></div>`;
 }
 
+/**
+ * Add a room record.
+ * @param {string} fundingId funding listing id
+ */
 export async function admRoomAdd(fundingId) {
   const title = $("#adm_doc_title")?.value;
   const file_url = $("#adm_doc_url")?.value.trim();
-  if (!file_url) { toast("Required", "Paste the file URL first.", false); return; }
+  decorateRoomForm(); // idempotent; makes sure the field is colour-coded before validating
+  if (!validateField("adm_doc_title", FIELD_KIND.MANDATORY) || !validateField("adm_doc_url", FIELD_KIND.MANDATORY, validators.url, "Paste a valid file URL, like https://…")) { toast("Required", "Paste a valid file URL first.", false); return; }
   const ok = await _svc.addDataRoomDoc(fundingId, { title, file_url });
   if (ok) {
     _admFundingDocs = await _svc.getDataRoomDocs(fundingId);
     const listing = _admFunding.find(f => f._id === fundingId);
-    const panel = $("#adm_room_panel"); if (panel && listing) panel.innerHTML = renderDataRoomPanel(listing);
+    const panel = $("#adm_room_panel"); if (panel && listing) { panel.innerHTML = renderDataRoomPanel(listing); decorateRoomForm(); }
   }
 }
 
+/**
+ * Delete a room record (the API call asks the admin to confirm first).
+ * @param {string} docId data-room document id
+ */
 export async function admRoomDel(docId) {
   if (!confirm("Delete this document?")) return;
   const ok = await _svc.deleteDataRoomDoc(docId);
   if (ok && _admFundingSelected) {
     _admFundingDocs = _admFundingDocs.filter(d => d._id !== docId);
     const listing = _admFunding.find(f => f._id === _admFundingSelected);
-    const panel = $("#adm_room_panel"); if (panel && listing) panel.innerHTML = renderDataRoomPanel(listing);
+    const panel = $("#adm_room_panel"); if (panel && listing) { panel.innerHTML = renderDataRoomPanel(listing); decorateRoomForm(); }
   }
 }
 
+/**
+ * Filter the funding list by the chosen value and redraw.
+ * @param {string} f filter value
+ */
 export function admFundingFilter(f) { _admFundingStatusFilter = f; renderAdminFunding(); }
 
 /* ── Content management (Partners / Testimonials / Trending) ─────────── */
@@ -722,6 +890,9 @@ let _partners = [], _testimonials = [], _trending = [];
 let _contentEditing = null; // null=list, "new"=new, id=edit
 let _contentLoaded = false;
 
+/**
+ * Load (if needed) and draw the content section.
+ */
 export async function paintContent() {
   const body = $("#adm_body"); if (!body) return;
   if (!_contentLoaded) {
@@ -734,6 +905,9 @@ export async function paintContent() {
   renderContent();
 }
 
+/**
+ * Draw the content UI from cached data.
+ */
 function renderContent() {
   const body = $("#adm_body"); if (!body) return;
   if (_contentEditing !== null) { renderContentForm(); return; }
@@ -774,6 +948,9 @@ function renderContent() {
     : `<div class="empty" style="margin-top:24px">${ico("grid")} No ${_contentTab} yet. Add one above.</div>`}`;
 }
 
+/**
+ * Draw the content form UI from cached data.
+ */
 function renderContentForm() {
   const body = $("#adm_body"); if (!body) return;
   const items = _contentTab === 'partners' ? _partners : _contentTab === 'testimonials' ? _testimonials : _trending;
@@ -813,8 +990,15 @@ function renderContentForm() {
       </div>
     </form>`;
 
+  // Only the ids of the active tab exist in the DOM; decorateForm ignores the rest.
+  const contentSpec = decorateForm(_contentTab === 'partners'
+    ? { cf_name: { kind: FIELD_KIND.MANDATORY, msg: "Enter a name" }, cf_website: { kind: FIELD_KIND.OPTIONAL, rule: validators.url, msg: "Enter a valid website" }, cf_logo: { kind: FIELD_KIND.OPTIONAL, rule: validators.url, msg: "Enter a valid URL" }, cf_sort: { kind: FIELD_KIND.OPTIONAL } }
+    : _contentTab === 'testimonials'
+    ? { cf_quote: { kind: FIELD_KIND.MANDATORY, msg: "Enter the quote" }, cf_name: { kind: FIELD_KIND.MANDATORY, msg: "Enter a name" }, cf_company: { kind: FIELD_KIND.MANDATORY, msg: "Enter the company" }, cf_initials: { kind: FIELD_KIND.OPTIONAL }, cf_avatar: { kind: FIELD_KIND.OPTIONAL, rule: validators.url, msg: "Enter a valid URL" }, cf_sort: { kind: FIELD_KIND.OPTIONAL } }
+    : { cf_keyword: { kind: FIELD_KIND.MANDATORY, msg: "Enter a keyword" }, cf_sort: { kind: FIELD_KIND.OPTIONAL } });
   $("#contentForm").onsubmit = async (e) => {
     e.preventDefault();
+    if (!contentSpec.validate()) { toast("Check the form", "Please fix the highlighted fields.", false); return; }
     const btn = $("#cf_save"); btn.disabled = true; btn.textContent = "Saving…";
     let payload = { active: $("#cf_active").checked, sort_order: Number($("#cf_sort")?.value || 0) };
     if (_contentTab === 'partners') {
@@ -841,10 +1025,28 @@ function renderContentForm() {
   };
 }
 
+/**
+ * Switch the content tab and redraw.
+ * @param {string} t type/tab key
+ */
 export function contentTab(t) { _contentTab = t; _contentEditing = null; renderContent(); }
+/**
+ * Open the blank content form.
+ */
 export function contentNew() { _contentEditing = "new"; renderContentForm(); }
+/**
+ * Open the content form for an existing record.
+ * @param {string} id record id
+ */
 export function contentEdit(id) { _contentEditing = id; renderContentForm(); }
+/**
+ * Close the content form without saving.
+ */
 export function contentCancel() { _contentEditing = null; renderContent(); }
+/**
+ * Delete a content record (the API call asks the admin to confirm first).
+ * @param {string} id record id
+ */
 export async function contentDel(id) {
   if (!confirm("Delete this item?")) return;
   let ok;
@@ -871,6 +1073,9 @@ let _admMemberStatusFilter = "";
 let _admMemberTierFilter = "";
 let _admMemberSectorFilter = "";
 
+/**
+ * Load (if needed) and draw the admin members section.
+ */
 export async function paintAdminMembers() {
   const body = $("#adm_body"); if (!body) return;
   if (_admMembersLoading) return;
@@ -885,6 +1090,9 @@ export async function paintAdminMembers() {
   renderAdminMembers();
 }
 
+/**
+ * Draw the admin members UI from cached data.
+ */
 function renderAdminMembers() {
   const body = $("#adm_body"); if (!body) return;
   let list = _admMembers;
@@ -935,6 +1143,9 @@ function renderAdminMembers() {
   $$(".adm-mem-sponsored").forEach(cb => { cb.onchange = () => patchMember(cb.dataset.id, { is_sponsored: cb.checked }); });
 }
 
+/**
+ * Filter the members list by the chosen value and redraw.
+ */
 export function admMembersFilter() {
   _admMemberStatusFilter = $("#adm_mem_status")?.value || "";
   _admMemberTierFilter   = $("#adm_mem_tier")?.value   || "";
@@ -948,6 +1159,9 @@ let _admUsers = [];
 let _admUsersLoaded = false;
 let _admUsersLoading = false;
 
+/**
+ * Load (if needed) and draw the admin users section.
+ */
 export async function paintAdminUsers() {
   const body = $("#adm_body"); if (!body) return;
   if (_admUsersLoading) return;
@@ -962,6 +1176,9 @@ export async function paintAdminUsers() {
   renderAdminUsers();
 }
 
+/**
+ * Draw the admin users UI from cached data.
+ */
 function renderAdminUsers() {
   const body = $("#adm_body"); if (!body) return;
   const myUid = (() => { try { const t = localStorage.getItem("wta_token"); if (!t) return null; const p = t.split(".")[1]; return JSON.parse(atob(p)).uid; } catch { return null; } })();
@@ -1003,6 +1220,9 @@ function renderAdminUsers() {
 
 let _admActUser = null, _admActPage = 1, _admActType = "", _admActQ = "";
 
+/**
+ * Load (if needed) and draw the admin activity section.
+ */
 export async function paintAdminActivity() {
   const body = $("#adm_body"); if (!body) return;
   body.innerHTML = `<div class="thinking" role="status" style="margin-top:16px"><div class="radar"><svg viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><b>Loading activity…</b></div></div>`;
@@ -1033,9 +1253,24 @@ export async function paintAdminActivity() {
   const qi = $("#adm_act_q");
   if (qi) { let tm; qi.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { _admActQ = qi.value.trim(); _admActPage = 1; paintAdminActivity().then(() => { const n = $("#adm_act_q"); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }); }, 350); }; }
 }
+/**
+ * Open the detail view for one act record.
+ * @param {string} id record id
+ */
 export function admActOpen(id) { _admActUser = id; _admActPage = 1; _admActType = ""; paintAdminActivity(); }
+/**
+ * Return from the act detail to the list.
+ */
 export function admActBack() { _admActUser = null; _admActPage = 1; paintAdminActivity(); }
+/**
+ * Go to another page of the act list.
+ * @param {number} n number/index
+ */
 export function admActPage(n) { _admActPage = n; paintAdminActivity(); }
+/**
+ * Filter the act list by event type.
+ * @param {string} t type/tab key
+ */
 export function admActType(t) { _admActType = t; _admActPage = 1; paintAdminActivity(); }
 
 /* ── Admin Subscribers ───────────────────────────────────────────────── */
@@ -1045,6 +1280,9 @@ let _admSubsLoaded = false;
 let _admSubsLoading = false;
 let _admSubsTypeFilter = "";
 
+/**
+ * Load (if needed) and draw the admin subscribers section.
+ */
 export async function paintAdminSubscribers() {
   const body = $("#adm_body"); if (!body) return;
   if (_admSubsLoading) return;
@@ -1059,6 +1297,9 @@ export async function paintAdminSubscribers() {
   renderAdminSubscribers();
 }
 
+/**
+ * Draw the admin subscribers UI from cached data.
+ */
 function renderAdminSubscribers() {
   const body = $("#adm_body"); if (!body) return;
   const list = _admSubsTypeFilter ? _admSubs.filter(s=>s.type===_admSubsTypeFilter) : _admSubs;
@@ -1087,7 +1328,15 @@ function renderAdminSubscribers() {
     : `<div class="empty" style="margin-top:24px">${ico("bell")} No subscribers yet.</div>`}`;
 }
 
+/**
+ * Filter the subs list by the chosen value and redraw.
+ * @param {string} t type/tab key
+ */
 export function admSubsFilter(t) { _admSubsTypeFilter = t; renderAdminSubscribers(); }
+/**
+ * Delete a subs record (the API call asks the admin to confirm first).
+ * @param {string} id record id
+ */
 export async function admSubsDel(id) {
   if (!confirm("Remove this subscriber?")) return;
   const ok = await _svc.deleteSubscription(id);
@@ -1104,6 +1353,9 @@ let _admContactLoaded = false;
 let _admContactLoading = false;
 let _admContactStatusFilter = "";
 
+/**
+ * Load (if needed) and draw the admin contact section.
+ */
 export async function paintAdminContact() {
   const body = $("#adm_body"); if (!body) return;
   if (_admContactLoading) return;
@@ -1118,6 +1370,9 @@ export async function paintAdminContact() {
   renderAdminContact();
 }
 
+/**
+ * Draw the admin contact UI from cached data.
+ */
 function renderAdminContact() {
   const body = $("#adm_body"); if (!body) return;
   const list = _admContactStatusFilter ? _admContact.filter(c=>c.status===_admContactStatusFilter) : _admContact;
@@ -1160,6 +1415,10 @@ function renderAdminContact() {
   });
 }
 
+/**
+ * Filter the contact list by the chosen value and redraw.
+ * @param {string} s value
+ */
 export function admContactFilter(s) { _admContactStatusFilter = s; renderAdminContact(); }
 
 /* inline handlers in the markup call these by name */

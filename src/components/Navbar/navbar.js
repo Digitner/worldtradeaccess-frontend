@@ -7,6 +7,9 @@ import { go } from '../../utils/router.js';
 import { STORE, state } from '../../utils/state.js';
 import LocalStorage from '../../config/LocalStorage.js';
 
+/**
+ * Redraw the header (login/dashboard buttons, active link) for the current user and route.
+ */
 export function renderChrome(){
   const active=location.hash||"#/";
   $("#navlinks").innerHTML=NAVITEMS.map(([h,l,i])=>`<a href="${h}" class="${active.startsWith(h)?"active":""}" ${active.startsWith(h)?'aria-current="page"':""}>${ico(i)}${l}</a>`).join("");
@@ -27,8 +30,14 @@ export function renderChrome(){
   $$("[data-logo-div]").forEach(d=>d.hidden=!IMG.logo);
 }
 
+/**
+ * Close the mobile menu.
+ */
 export function closeMenu(){$("#mobileMenu").classList.remove("open");$("#hamb").setAttribute("aria-expanded","false");}
 
+/**
+ * Wire the navbar buttons (menu, theme).
+ */
 export function initNavbar(){
 $("#hamb").onclick=()=>{const o=$("#mobileMenu").classList.toggle("open");$("#hamb").setAttribute("aria-expanded",o?"true":"false");};
 

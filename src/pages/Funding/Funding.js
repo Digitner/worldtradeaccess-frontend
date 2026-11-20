@@ -3,7 +3,7 @@ import { ccChip } from '../../components/Chips/Chips.js';
 import { toast } from '../../components/Toasts/toast.js';
 import { DEAL_STAGES } from '../../constant/forms.js';
 import { PILLARS } from '../../constant/pillars.js';
-import { reqField } from '../../utils/forms.js';
+import { decorateForm, FIELD_KIND } from '../../utils/fields.js';
 import useServices from './hooks/useServices.js';
 import { $, $$, esc, ico, img, imgTag } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
@@ -13,6 +13,12 @@ const _svc = useServices();
 let _listings = [];
 let _inboundMap = {}; // listingId → investor count
 
+/**
+ * Render the funding page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ * @param {*} _a unused route argument
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 export async function viewFunding(app, _a, soft) {
   if (soft && $("#fund_list")) { paintFund(); return; }
   let ftype = "Seeking Investment";
@@ -30,12 +36,12 @@ export async function viewFunding(app, _a, soft) {
           <p class="muted" style="margin:0 0 14px">Publish a capital, JV or sale opportunity to the network.</p>
           <span class="flabel">${ico("filter")}Listing type</span>
           <div class="roles" id="ftypes" style="margin:6px 0 14px">${[["Seeking Investment", "wallet"], ["Seeking JV", "handshake"], ["For Sale", "briefcase"]].map(([t, i]) => `<button type="button" class="role" data-t="${t}" aria-pressed="${t === ftype}">${ico(i)}${t}</button>`).join("")}</div>
-          <div class="field" style="margin-bottom:12px"><label for="ff_company">${ico("building")}Company <span class="req">*</span></label><input id="ff_company" value="${state.USER ? esc(state.USER.company_name || state.USER.name || "") : ""}"><div class="err-msg">Enter the company name</div></div>
+          <div class="field" style="margin-bottom:12px"><label for="ff_company">${ico("building")}Company</label><input id="ff_company" value="${state.USER ? esc(state.USER.company_name || state.USER.name || "") : ""}"><div class="err-msg">Enter the company name</div></div>
           <div class="form-grid">
             <div class="field"><label for="ff_amount">${ico("coins")}Amount</label><input id="ff_amount" placeholder="USD 5M"></div>
             <div class="field"><label for="ff_sector">${ico("grid")}Sector</label><select id="ff_sector">${PILLARS.map(p => `<option ${state.USER && (state.USER.sector || state.USER.pillar) === p ? "selected" : ""}>${p}</option>`).join("")}</select></div>
           </div>
-          <div class="field full" style="margin-top:12px"><label for="ff_desc">${ico("file")}Description <span class="req">*</span></label><textarea id="ff_desc" maxlength="400" placeholder="What you're offering and why…"></textarea><div class="err-msg">Describe the opportunity</div></div>
+          <div class="field full" style="margin-top:12px"><label for="ff_desc">${ico("file")}Description</label><textarea id="ff_desc" maxlength="400" placeholder="What you're offering and why…"></textarea><div class="err-msg">Describe the opportunity</div></div>
           <div class="field full" style="margin-top:12px">
             <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">${ico("image")}Listing image <span class="muted" style="font-weight:400">(optional)</span></label>
             <div id="ff_img_preview" style="display:none;margin-bottom:8px;position:relative;width:100%;height:120px;border-radius:10px;overflow:hidden;background:var(--surface-2)"><img id="ff_img_thumb" src="" alt="" style="width:100%;height:100%;object-fit:cover"><button type="button" onclick="document.getElementById('ff_img_preview').style.display='none';document.getElementById('ff_img_drop').style.display='flex';document.getElementById('ff_img').value='';window._fundImgUrl=null" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:15px;line-height:1.1">×</button></div>
@@ -89,11 +95,18 @@ export async function viewFunding(app, _a, soft) {
   }
   paintFund();
 
+  // Colour-coding + validation (SOP): red = required, green = optional.
+  const fundSpec = decorateForm({
+    ff_company: { kind: FIELD_KIND.MANDATORY, msg: "Enter the company name" },
+    ff_desc:    { kind: FIELD_KIND.MANDATORY, msg: "Add a short description" },
+    ff_amount:  { kind: FIELD_KIND.OPTIONAL },
+    ff_sector:  { kind: FIELD_KIND.OPTIONAL },
+  });
   $("#fundForm").onsubmit = async (e) => {
     e.preventDefault();
     if (window._fundImgUploading) { toast("Please wait", "Image is still uploading…", false); return; }
     if (!state.USER) { toast("Create an account first", "Log in to publish a listing.", false); go("#/login"); return; }
-    if (![reqField("ff_company"), reqField("ff_desc")].every(Boolean)) { toast("Check the form", "Company and description are required.", false); return; }
+    if (!fundSpec.validate()) { toast("Check the form", "Company and description are required.", false); return; }
     const btn = $("#publishBtn"); btn.disabled = true; btn.textContent = "Publishing…";
     const formData = {
       type: ftype,
@@ -117,6 +130,9 @@ export async function viewFunding(app, _a, soft) {
   };
 }
 
+/**
+ * Redraw the funding list from the current filters.
+ */
 export function paintFund() {
   const el = $("#fund_list"); if (!el) return;
   if (!_listings.length) { el.innerHTML = `<div class="empty">No listings yet. Be the first to publish one.</div>`; return; }

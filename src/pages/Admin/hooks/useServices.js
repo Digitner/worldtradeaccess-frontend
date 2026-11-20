@@ -3,6 +3,10 @@ import { toast } from '../../../components/Toasts/toast.js';
 import APIRequest from '../../../utils/APIRequest.js';
 import ConfigAPIURL from '../../../config/ConfigAPIURL.js';
 
+/**
+ * Service hook: returns the API wrappers this page uses. Each resolves to data (or null on failure) and shows its own error toast.
+ * @returns {Object} API wrapper functions
+ */
 function useServices() {
   async function getSubmissions({ kind, page = 1, limit = 400 } = {}) {
     try {

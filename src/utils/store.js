@@ -5,28 +5,58 @@ import { SEED_FUNDING, SEED_MEMBERS } from '../constant/seed.js';
 import { save } from './helpers.js';
 import { STORE, state } from './state.js';
 
+/**
+ * True when listings are shared through the API rather than kept locally.
+ */
 export function shared(){return !!(STORE.db&&STORE.uid);}
 
+/**
+ * Current user id.
+ */
 export function myId(){return STORE.uid||(state.USER&&state.USER.id)||"local";}
 
+/**
+ * Locally stored form submissions.
+ */
 export function forms(){return shared()&&state.MY_FORMS?state.MY_FORMS:state.LOCAL_FORMS;}
 
+/**
+ * All member listings (API or local).
+ */
 export function allMembers(){
   const extra=shared()?state.LISTINGS:state.LOCAL_MEMBERS;
   const ids=new Set(extra.map(m=>m.id));
   return [...extra,...SEED_MEMBERS.filter(m=>!ids.has(m.id))];
 }
 
+/**
+ * All funding listings.
+ */
 export function allFunding(){return [...(shared()?state.PUB_FUNDING:state.LOCAL_FUNDING),...SEED_FUNDING];}
 
+/**
+ * Intros the current user sent.
+ */
 export function myIntros(){return forms().filter(f=>f.kind==="intro");}
 
+/**
+ * Current user's pipeline stage for a funding listing.
+ * @param {string} fid funding listing id
+ */
 export function myDealStage(fid){let s=-1;forms().forEach(f=>{if(f.kind==="deal"&&f.data&&f.data.fid===fid&&typeof f.data.stage==="number")s=Math.max(s,f.data.stage);});return s;}
 
+/**
+ * Current user's deals.
+ */
 export function myDeals(){const ids=new Set(forms().filter(f=>f.kind==="deal").map(f=>f.data&&f.data.fid));return [...ids].filter(Boolean).map(fid=>{const f=allFunding().find(x=>x.id===fid);const last=forms().find(x=>x.kind==="deal"&&x.data&&x.data.fid===fid);return {fid,company:f?f.company:(last&&last.data.company)||"Opportunity",amount:f?f.amount:"",stage:myDealStage(fid)};});}
 
 /* ---- record every form submission (shared store for admins + local copy) ---- */
 
+/**
+ * Store a form submission for the admin feed.
+ * @param {string} kind record kind
+ * @param {object} data record data
+ */
 export async function record(kind,data){
   const who={name:(state.USER&&(state.USER.person||state.USER.name))||data.person||data.name||"",email:(state.USER&&state.USER.email)||data.email||"",company:(state.USER&&state.USER.name)||data.company||""};
   const entry={kind,at:Date.now(),data:JSON.parse(JSON.stringify(data||{})),who};
@@ -45,6 +75,10 @@ export async function record(kind,data){
   return true;
 }
 
+/**
+ * Publish a member listing.
+ * @param {object} m member/listing record
+ */
 export async function publishListing(m){
   if(shared()){
     try{await STORE.db.doc(`listings/${STORE.uid}`).set({...m,id:"u-"+STORE.uid,owner:STORE.uid,updated:Date.now()});}catch(e){}
@@ -53,6 +87,10 @@ export async function publishListing(m){
   }
 }
 
+/**
+ * Publish a funding listing.
+ * @param {object} item item to publish
+ */
 export async function publishFunding(item){
   if(shared()){
     const items=[item,...state.MY_FUNDING].slice(0,20);

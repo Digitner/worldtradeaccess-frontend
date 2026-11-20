@@ -9,6 +9,8 @@ import { state } from './state.js';
 import LocalStorage from '../config/LocalStorage.js';
 import APIRequest from './APIRequest.js';
 import ConfigAPIURL from '../config/ConfigAPIURL.js';
+import { startSessionWatch } from './session.js';
+import { watchPasswordFields } from './passwordToggle.js';
 
 /* Starts the app once the React shell (navbar, <main id="app">, footer) is in the DOM. */
 export async function bootstrap() {
@@ -17,10 +19,13 @@ export async function bootstrap() {
 
   initTheme();
   initNavbar();
+  watchPasswordFields(); // eye (show/hide) button on every password box, including ones rendered later
   initFx();          // route changes go through the page sweep, then route()
   initTracking();    // optional click tracking (browser only, off until a member agrees)
 
   // Restore user from localStorage and verify session with backend
+  // Auto-logout when the 5-7 day session ends (also checks at boot, so an expired tab is cleared on open).
+  startSessionWatch(() => { LocalStorage.clear(); state.USER = null; });
   LocalStorage.restore();
   if (LocalStorage.isLoggedIn()) {
     state.USER = LocalStorage.userDetails;

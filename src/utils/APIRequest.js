@@ -1,4 +1,5 @@
 ﻿import ConfigAPIURL from "../config/ConfigAPIURL";
+import { expireSession } from "./session.js";
 
 const APIRequest = {
   request: function (method, url, body) {
@@ -37,18 +38,22 @@ const APIRequest = {
           .then((r) => r.json())
           .catch(() => ({ returncode: 0, errors: [{ errormsg: "Network error." }] }));
       } else {
-        localStorage.removeItem("wta_token");
-        localStorage.removeItem("wta_user");
-        window.location.href = "#/login";
+        // Refresh failed: the session is over. Wipe everything and show "session expired".
+        await expireSession("expired");
         return;
       }
     }
 
+    // Server says this account still has no password: raise the blocking popup (also covers a stale tab).
+    if (response?.data?.password_required) {
+      const [{ state }, { enforcePasswordGate }] = await Promise.all([import("./state.js"), import("./passwordGate.js")]);
+      if (state.USER) { state.USER.password_set = false; enforcePasswordGate(state.USER); }
+      return Promise.resolve(response);
+    }
+
     // Session invalid -- redirect to login
     if (response?.returncode === 2) {
-      localStorage.removeItem("wta_token");
-      localStorage.removeItem("wta_user");
-      window.location.href = "#/login";
+      await expireSession("invalid");
       return;
     }
 

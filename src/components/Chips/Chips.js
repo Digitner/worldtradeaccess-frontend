@@ -4,8 +4,21 @@ import { PILLAR_IC } from '../../constant/pillars.js';
 import { ROLE_META, TYPE_LABEL } from '../../constant/roles.js';
 import { esc, ico } from '../../utils/helpers.js';
 
+/**
+ * Country code chip HTML.
+ * @param {string} c country/code
+ * @param {string} cls extra CSS class
+ */
 export function ccChip(c,cls){const code=CC[c]||(/^[A-Z]{2}$/.test(String(c||""))?c:"··");return `<span class="cc ${cls||''}" title="${esc(c)}">${esc(code)}</span>`;}
 
+/**
+ * Icon name for a sector/pillar.
+ * @param {string} p value
+ */
 export function pIco(p){return ico(PILLAR_IC[p]||"globe");}
 
+/**
+ * Tag HTML for a listing type.
+ * @param {string} t type/tab key
+ */
 export function typeTag(t){return `<span class="tag ${t==="invest"||t==="capital"?"gold":""}">${ico(ROLE_META[t]?ROLE_META[t].ic:"globe")}${TYPE_LABEL[t]||"Member"}</span>`;}

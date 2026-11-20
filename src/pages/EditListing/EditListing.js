@@ -3,7 +3,7 @@ import { toast } from '../../components/Toasts/toast.js';
 import { COUNTRIES } from '../../constant/countries.js';
 import { PILLARS } from '../../constant/pillars.js';
 import { ROLE_META, TIERS } from '../../constant/roles.js';
-import { reqField } from '../../utils/forms.js';
+import { decorateForm, validators, FIELD_KIND } from '../../utils/fields.js';
 import useServices from './hooks/useServices.js';
 import { $, $$, esc, ico, isEmail, wc } from '../../utils/helpers.js';
 import { go } from '../../utils/router.js';
@@ -11,6 +11,10 @@ import { state } from '../../utils/state.js';
 
 const _svc = useServices();
 
+/**
+ * Render the edit listing page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewEditListing(app) {
   // Fetch fresh data from API
   const fresh = await _svc.getMe();
@@ -94,13 +98,31 @@ export async function viewEditListing(app) {
       <form id="pwForm" novalidate>
         <div class="form-grid">
           <div class="field"><label for="pw_cur">${ico("lock")}Current password</label><input id="pw_cur" type="password" placeholder="Your current password"><div class="err-msg">Enter your current password</div></div>
-          <div class="field"><label for="pw_new">${ico("lock")}New password</label><input id="pw_new" type="password" placeholder="At least 6 characters"><div class="err-msg">Enter a new password (min 6 chars)</div></div>
+          <div class="field"><label for="pw_new">${ico("lock")}New password</label><input id="pw_new" type="password" placeholder="8+ characters, a letter and a number"><div class="err-msg">Enter a new password (min 6 chars)</div></div>
           <div class="field"><label for="pw_conf">${ico("lock")}Confirm new password</label><input id="pw_conf" type="password" placeholder="Repeat new password"><div class="err-msg">Passwords do not match</div></div>
         </div>
         <button class="btn btn-block" id="pwBtn" type="submit" style="margin-top:12px">${ico("check")} Update password</button>
       </form>
     </div>
   </div></section>`;
+
+  // Colour-coding + validation spec (SOP): red = required, green = optional (format-checked only when filled).
+  const editForm = decorateForm({
+    e_name:   { kind: FIELD_KIND.MANDATORY, msg: "Enter your company name" },
+    e_person: { kind: FIELD_KIND.MANDATORY, msg: "Enter a contact name" },
+    e_country:{ kind: FIELD_KIND.MANDATORY },
+    e_pillar: { kind: FIELD_KIND.MANDATORY },
+    e_seek:   { kind: FIELD_KIND.MANDATORY, msg: "Describe what you're looking for" },
+    e_site:   { kind: FIELD_KIND.OPTIONAL, rule: validators.url, msg: "Enter a valid website, like company.com" },
+    e_role:   { kind: FIELD_KIND.OPTIONAL },
+    e_email:  { kind: FIELD_KIND.OPTIONAL, rule: validators.email, msg: "Enter a valid email" },
+    e_phone:  { kind: FIELD_KIND.OPTIONAL, rule: validators.phone, msg: "Enter a valid phone number" },
+  });
+  const pwForm = decorateForm({
+    pw_cur:  { kind: FIELD_KIND.MANDATORY, msg: "Enter your current password" },
+    pw_new:  { kind: FIELD_KIND.MANDATORY, rule: validators.password, msg: "Use 8+ characters with a letter and a number" },
+    pw_conf: { kind: FIELD_KIND.MANDATORY, rule: (v) => v === $("#pw_new").value, msg: "Passwords do not match" },
+  });
 
   $("#e_tiers").onclick = e => { const c = e.target.closest(".choice"); if (!c) return; tier = c.dataset.tier; $$("#e_tiers .choice").forEach(x => x.setAttribute("aria-pressed", String(x === c))); };
   $("#e_goals").onclick = e => { const b = e.target.closest(".role"); if (!b) return; goal = b.dataset.goal; $$("#e_goals .role").forEach(x => x.setAttribute("aria-pressed", String(x === b))); };
@@ -207,7 +229,7 @@ export async function viewEditListing(app) {
 
   $("#editForm").onsubmit = async (e) => {
     e.preventDefault();
-    if ($("#e_email").value.trim() && !reqField("e_email", isEmail)) return;
+    if (!editForm.validate()) { editForm.firstInvalid()?.focus(); return; }
     const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "Checking…";
     const resetBtn = () => { btn.disabled = false; btn.innerHTML = `${ico("check")} Save changes`; };
 
@@ -259,14 +281,9 @@ export async function viewEditListing(app) {
 
   $("#pwForm").onsubmit = async (e) => {
     e.preventDefault();
+    if (!pwForm.validate()) return;
     const cur = $("#pw_cur").value;
     const nw  = $("#pw_new").value;
-    const cf  = $("#pw_conf").value;
-    let ok = true;
-    if (!cur) { $("#pw_cur").closest(".field").classList.add("invalid"); ok = false; } else { $("#pw_cur").closest(".field").classList.remove("invalid"); }
-    if (nw.length < 6) { $("#pw_new").closest(".field").classList.add("invalid"); ok = false; } else { $("#pw_new").closest(".field").classList.remove("invalid"); }
-    if (nw !== cf) { $("#pw_conf").closest(".field").classList.add("invalid"); ok = false; } else { $("#pw_conf").closest(".field").classList.remove("invalid"); }
-    if (!ok) return;
     const btn = $("#pwBtn"); btn.disabled = true; btn.textContent = "Updating…";
     const success = await _svc.changePassword({ current_password: cur, new_password: nw });
     if (success) {

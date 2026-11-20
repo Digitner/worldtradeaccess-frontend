@@ -9,15 +9,40 @@ import useServices from '../Dashboard/hooks/useServices.js';
 
 const _svc = useServices();
 let ACT_FILTER="all";
+/**
+ * Horizontal bar list HTML for activity counts.
+ * @param {Array} rows rows
+ */
 export function barList(rows){const max=Math.max(1,...rows.map(r=>r[1]));return rows.length?`<div class="barl">${rows.map(([l,n])=>`<div class="barr" title="${esc(l)}: ${n}"><span class="bl">${esc(l)}</span><span class="bt"><i style="--w:${(n/max*100).toFixed(1)}%"></i></span><span class="bn">${n}</span></div>`).join("")}</div>`:`<p class="muted" style="margin:0">Nothing recorded yet.</p>`;}
+/**
+ * Count items by a key function, sorted high to low.
+ * @param {Array} list items
+ * @param {string} fn global handler name to call
+ */
 export function countBy(list,fn){const m=new Map();list.forEach(e=>{const k=fn(e);if(k)m.set(k,(m.get(k)||0)+1);});return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,7);}
+/**
+ * Download the member's own activity as CSV.
+ */
 export function downloadActivity(){const rows=[["Time","Type","What","Page"],...myActivity().map(e=>[new Date(e.at).toISOString(),e.type,e.label,pageTitle(e.page)])];const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="my-worldtradeaccess-activity.csv";a.setAttribute("data-no-track","");document.body.appendChild(a);a.click();a.remove();}
 let ACT_PAGE=1;const ACT_SIZE=15;
+/**
+ * Pager HTML (prev/next and counts).
+ * @param {number} page current page
+ * @param {number} pages page count
+ * @param {number} total total items
+ * @param {number} size page size
+ * @param {string} fn global handler name to call
+ * @returns {string}
+ */
 export function pagerHTML(page,pages,total,size,fn){
   if(pages<=1)return `<div class="pager"><span>${total} item${total===1?"":"s"}</span></div>`;
   const nums=[];for(let i=1;i<=pages;i++){if(i===1||i===pages||Math.abs(i-page)<=1)nums.push(i);else if(nums[nums.length-1]!=="…")nums.push("…");}
   return `<nav class="pager" data-no-track aria-label="Pages"><span>Showing ${(page-1)*size+1}-${Math.min(page*size,total)} of ${total}</span><span class="pg"><button class="pgb" ${page<=1?"disabled":""} onclick="${fn}(${page-1})" aria-label="Previous page">&larr;</button>${nums.map(n=>n==="…"?`<span class="gap">…</span>`:`<button class="pgb" ${n===page?'aria-current="page"':""} onclick="${fn}(${n})">${n}</button>`).join("")}<button class="pgb" ${page>=pages?"disabled":""} onclick="${fn}(${page+1})" aria-label="Next page">&rarr;</button></span></nav>`;
 }
+/**
+ * Activity card HTML for the current filter and page.
+ * @returns {string}
+ */
 function actCardHTML(){
   const act=myActivity(),pages=act.filter(e=>e.type==="Page"),clicks=act.filter(e=>e.type==="Link"||e.type==="Button");
   const list=ACT_FILTER==="pages"?pages:ACT_FILTER==="clicks"?clicks:act;
@@ -27,9 +52,24 @@ function actCardHTML(){
       <div class="atbl-wrap" style="border:none"><table class="atbl" style="min-width:0"><thead><tr><th>When</th><th>What</th><th>Page</th></tr></thead><tbody>${rows.map(e=>`<tr style="cursor:default"><td class="when">${fmtDate(e.at)}</td><td>${esc(e.label||e.type)}</td><td>${esc(pageTitle(e.page))}</td></tr>`).join("")||`<tr><td colspan="3" class="muted">Nothing here yet.</td></tr>`}</tbody></table></div>
       ${pagerHTML(ACT_PAGE,np,list.length,ACT_SIZE,"setActPage")}`;
 }
+/**
+ * Redraw the activity card.
+ */
 function paintActCard(){const c=document.getElementById("act_card");if(c)c.innerHTML=actCardHTML();}
+/**
+ * Filter activity by type and redraw.
+ * @param {string} k key
+ */
 export function setActFilter(k){ACT_FILTER=k;ACT_PAGE=1;paintActCard();}
+/**
+ * Go to an activity page and redraw.
+ * @param {number} n number/index
+ */
 export function setActPage(n){ACT_PAGE=n;paintActCard();const c=document.getElementById("act_card");if(c)c.scrollIntoView({block:"nearest",behavior:"smooth"});}
+/**
+ * Render the activity page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ */
 export async function viewActivity(app){
   app.innerHTML=`<section><div class="wrap"><div class="loading-shimmer" style="height:260px;border-radius:12px;margin-top:24px"></div></div></section>`;
   const [intros,deals,viewed]=await Promise.all([_svc.getMyIntros(),_svc.getMyDeals(),_svc.getRecentlyViewed(),pullActivity(true)]);

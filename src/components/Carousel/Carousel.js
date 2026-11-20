@@ -3,10 +3,19 @@ import { $$, esc, ico } from '../../utils/helpers.js';
 import { state } from '../../utils/state.js';
 import { shared } from '../../utils/store.js';
 
+/**
+ * HTML for a carousel wrapper around slides.
+ * @param {string} inner slide HTML
+ * @param {boolean} auto auto-advance
+ * @param {string} label accessible label
+ */
 export function carousel(inner,auto,label){return `<div class="carousel" ${auto?'data-autoplay="1"':""} role="region" aria-label="${esc(label||"Carousel")}"><button class="cbtn prev" aria-label="Previous">${ico("back")}</button><div class="carousel-track">${inner}</div><button class="cbtn next" aria-label="Next">${ico("arrow")}</button></div>`;}
 
 /* ================= shared fragments ================= */
 
+/**
+ * Activate every carousel on the page (arrows, dots, auto-advance).
+ */
 export function mountCarousels(){
   $$("#app .carousel").forEach(c=>{
     const track=c.querySelector(".carousel-track");if(!track)return;

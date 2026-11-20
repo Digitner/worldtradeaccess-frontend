@@ -13,6 +13,11 @@ import { state } from '../../utils/state.js';
 
 const _svc = useServices();
 
+/**
+ * Render the member page into the app container.
+ * @param {HTMLElement} app mount node (#app)
+ * @param {string} id record id
+ */
 export async function viewMember(app, id) {
   app.innerHTML = `<section><div class="wrap"><div class="loading-shimmer" style="height:340px;border-radius:16px;margin-top:24px"></div></div></section>`;
 
@@ -254,6 +259,10 @@ export async function viewMember(app, id) {
 
 let _galImages = [], _galIdx = 0;
 
+/**
+ * Open the member gallery lightbox at an index.
+ * @param {number} idx index
+ */
 export function openGallery(idx) {
   _galIdx = idx;
   const src = _galImages[_galIdx] || "";
@@ -279,6 +288,11 @@ export function openGallery(idx) {
   });
 }
 
+/**
+ * Open the member video modal.
+ * @param {string} name name
+ * @param {string} src media URL
+ */
 export function openVideo(name, src) {
   const imgSrc = src && !src.startsWith("undefined") ? src : "";
   const el = document.createElement("div"); el.className = "vmodal"; el.id = "vmodal"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", name + " overview");
@@ -288,4 +302,7 @@ export function openVideo(name, src) {
   el.addEventListener("keydown", e => { if (e.key === "Escape") closeVideo(); });
 }
 
+/**
+ * Close the video modal.
+ */
 export function closeVideo() { const m = $("#vmodal"); if (m) m.remove(); }

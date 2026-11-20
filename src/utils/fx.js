@@ -12,24 +12,48 @@ import { $, $$, esc } from './helpers.js';
 import { logActivity, pageTitle, PAGE_NAME } from './activity.js';
 import { curBase, route } from './router.js';
 
+/**
+ * Move the tab indicator under a button.
+ * @param {HTMLElement} b button element
+ */
 export function moveInd(b){const n=$("#tabInd");if(!n||!b)return;n.style.width=b.offsetWidth+"px";n.style.transform=`translateX(${b.offsetLeft}px)`;}
 
 
 /* ================= motion ================= */
 const OS_REDUCED=matchMedia("(prefers-reduced-motion: reduce)");
+/**
+ * Saved reduced-motion preference.
+ */
 function motionPref(){try{return localStorage.getItem("wta_motion");}catch(e){return null;}}
 const REDUCED={get matches(){const p=motionPref();return p?p==="off":OS_REDUCED.matches;}};
 if(REDUCED.matches)document.documentElement.classList.add("no-motion");
 let CLEAN=[];const onClean=f=>CLEAN.push(f);
+/**
+ * Run and clear all cleanup callbacks of the previous page.
+ */
 function teardown(){CLEAN.forEach(f=>{try{f();}catch(e){}});CLEAN=[];}
+/**
+ * Mount every visual effect for the page that was just rendered.
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 function enhance(soft){
   teardown();if(!soft)logActivity('Page','Opened '+pageTitle(location.hash||'#/'));mountProgress();pageBanner(soft);document.body.classList.toggle('over-video',!!$('#app .hv,#app .pbn'));syncHeader();mountVideos();mountStory();
   
   mountCounts(soft);mountSteps();mountGlobe();moveInd($("#audTabs .cur"));mountFX(soft);
 }
+/**
+ * Toggle the header's scrolled style.
+ */
 function syncHeader(){const b=$('.topbar');if(b)b.classList.toggle('scrolled',scrollY>30);}
 addEventListener('scroll',syncHeader,{passive:true});
+/**
+ * Add the scroll progress bar.
+ */
 function mountProgress(){const b=$(".topbar");if(!b||$(".progress",b))return;const l=document.createElement("div");l.className="progress";l.setAttribute("aria-hidden","true");b.appendChild(l);const u=()=>{const h=document.documentElement.scrollHeight-innerHeight;l.style.setProperty("--p",(h>0?Math.min(1,scrollY/h):0).toFixed(4));};addEventListener("scroll",u,{passive:true});addEventListener("resize",u);u();}
+/**
+ * Wrap the page heading in the video banner.
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 function pageBanner(soft){
   const app=$("#app"),h=$(".page-h",app);if(!h||h.closest(".pbn"))return;
   const kicker=h.previousElementSibling&&h.previousElementSibling.classList.contains("kicker")?h.previousElementSibling:null;
@@ -42,15 +66,25 @@ function pageBanner(soft){
   app.prepend(banner);
   const first=banner.nextElementSibling;if(first&&first.tagName==="SECTION"&&first.textContent.trim()==="")first.remove();
 }
+/**
+ * Start background videos (paused when reduced motion is on).
+ */
 function mountVideos(){
   $$("video[data-bg]").forEach(v=>{v.muted=true;v.autoplay=!REDUCED.matches;try{v.src=VIDEO.hero;}catch(e){return;}if(!REDUCED.matches){const io=new IntersectionObserver(([e])=>{if(v.dataset.paused)return;if(e.isIntersecting)v.play().catch(()=>{});else v.pause();});io.observe(v);onClean(()=>{io.disconnect();v.pause();v.removeAttribute("src");v.load();});}});
   const t=$("#vtoggle"),hv=$(".hv video");if(t&&hv){if(REDUCED.matches){t.textContent="Play video";t.setAttribute("aria-label","Play background video");hv.dataset.paused="1";}
     t.onclick=()=>{const p=hv.dataset.paused;if(p){delete hv.dataset.paused;hv.play().catch(()=>{});t.textContent="Pause video";t.setAttribute("aria-label","Pause background video");}else{hv.dataset.paused="1";hv.pause();t.textContent="Play video";t.setAttribute("aria-label","Play background video");}};}
 }
+/**
+ * Count-up numbers.
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 function mountCounts(soft){
   const run=(n,to,suf)=>{const t0=performance.now();const f=t=>{const k=Math.min(1,(t-t0)/1100);n.textContent=Math.round(to*(1-Math.pow(1-k,3)))+suf;if(k<1)requestAnimationFrame(f);};requestAnimationFrame(f);};
   if(!REDUCED.matches&&!soft)$$("#app .kpi .n").forEach(n=>{const m=n.textContent.trim().match(/^(\d+)(.*)$/);if(m&&+m[1]>0)run(n,+m[1],m[2]);});
 }
+/**
+ * Step-by-step explainer.
+ */
 function mountSteps(){
   const st=$$("#stepsT .step"),art=$$("#stepsArt img");if(!st.length)return;
   let k=0,hold=false,vis=false;
@@ -63,6 +97,9 @@ function mountSteps(){
 }
 /* route transition */
 let ROUTING=false;
+/**
+ * Route with the page-sweep transition.
+ */
 function softRoute(){
   const sw=$("#sweep");
   if(REDUCED.matches||ROUTING||!sw){route();window.scrollTo(0,0);return;}
@@ -75,6 +112,9 @@ function softRoute(){
 const HUBS=[["India",20.6,79],["China",31,114],["Brazil",-15,-50],["Russia",55.7,37.6],["South Africa",-29,25],["Egypt",28,31],["Ethiopia",9,39],["UAE",24.4,54.4],["Saudi Arabia",24,45],["Iran",32,53],["Indonesia",-5,110],["Malaysia",3.1,101.7],["Thailand",13.7,100.5],["Vietnam",16,107],["Philippines",14.6,121],["Singapore",1.3,103.8],["Sri Lanka",7,80.7],["Cambodia",11.6,104.9]];
 const HUB_LABEL=new Set(["India","China","Brazil","Russia","South Africa","Egypt","UAE","Indonesia","Malaysia","Thailand","Philippines"]);
 const LANES=[["India","Malaysia"],["Russia","India"],["South Africa","Malaysia"],["China","Indonesia"],["Brazil","Vietnam"],["UAE","India"],["Egypt","Thailand"],["Indonesia","India"],["Saudi Arabia","Singapore"],["Ethiopia","Singapore"],["China","Philippines"],["Brazil","South Africa"],["Russia","China"]];
+/**
+ * Animated trade-lane globe.
+ */
 function mountGlobe(){
   const cv=$("#globe");if(!cv)return;const ctx=cv.getContext("2d");const rad=Math.PI/180,raw=atob(LAND_B64),dots=[];
   for(let i=0;i<raw.length;i+=2){const la=(raw.charCodeAt(i)*180/255-90)*rad,lo=(raw.charCodeAt(i+1)*360/255-180)*rad;dots.push([Math.cos(la)*Math.sin(lo),Math.sin(la),Math.cos(la)*Math.cos(lo)]);}
@@ -107,16 +147,61 @@ function mountGlobe(){
 }
 /* ================= FX: text and interface animation ================= */
 function walkText(el,fn){const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT),ns=[];while(w.nextNode())ns.push(w.currentNode);ns.forEach(fn);}
+/**
+ * Split text into spans per character for animation.
+ * @param {HTMLElement} el target element
+ * @param {string} base base text
+ */
 function splitChars(el,base){if(el.querySelector(".ch"))return;const t=el.textContent;let c=0;el.innerHTML=t.split(/(\s+)/).map(x=>/^\s+$/.test(x)?" ":x?`<span class="wd">${[...x].map(ch=>`<span class="ch" style="--c:${c++}">${esc(ch)}</span>`).join("")}</span>`:"").join("");if(base)el.style.setProperty("--base",base+"ms");}
+/**
+ * Split text into spans per word for animation.
+ * @param {HTMLElement} el target element
+ * @param {string} cls extra CSS class
+ * @param {string} inner slide HTML
+ */
 function splitWords(el,cls,inner){if(el.dataset.split)return;el.dataset.split="1";let n=0;walkText(el,node=>{if(!node.nodeValue.trim())return;if(node.parentElement.closest("button,a,.vh"))return;const f=document.createDocumentFragment();node.nodeValue.split(/(\s+)/).forEach(x=>{if(!x)return;if(/^\s+$/.test(x)){f.appendChild(document.createTextNode(" "));return;}const s=document.createElement("span");s.className=cls;s.style.setProperty("--n",n++);if(inner){const i=document.createElement("span");i.className="wi";i.textContent=x;s.appendChild(i);}else s.textContent=x;f.appendChild(s);});node.replaceWith(f);});}
+/**
+ * Text scramble-in effect.
+ * @param {HTMLElement} el target element
+ */
 function scramble(el){const t=el.textContent;if(!t.trim())return;const G="ABCDEFGHIKLMNOPRSTUVWXYZ";const t0=performance.now();const f=now=>{const k=Math.min(1,(now-t0)/750),r=Math.floor(k*t.length);el.textContent=t.slice(0,r)+[...t.slice(r)].map(c=>c===" "?" ":G[Math.floor(Math.random()*G.length)]).join("");if(k<1)requestAnimationFrame(f);else el.textContent=t;};requestAnimationFrame(f);}
+/**
+ * Odometer count-up effect.
+ * @param {number} n number/index
+ */
 function odometer(n){const to=String(n.dataset.count),suf=n.dataset.suf||"";n.innerHTML=[...to].map((d,k)=>`<em class="odo"><i style="--k:${k}" data-d="${d}">${"0123456789".split("").map(x=>`<u>${x}</u>`).join("")}</i></em>`).join("")+suf;}
 let FX_IO=null;
+/**
+ * Observe an element for scroll reveal.
+ * @param {HTMLElement} el target element
+ */
 function fxObserve(el){if(FX_IO)FX_IO.observe(el);}
+/**
+ * Mark elements for a reveal animation.
+ * @param {string} sel CSS selector
+ * @param {string} type type
+ * @param {number} step stagger step
+ * @param {ParentNode} scope search root
+ */
 function fxMark(sel,type,step,scope){$$(sel,scope||$("#app")).forEach((el,i)=>{if(el.closest(".hv")||el.dataset.fxd)return;el.dataset.fxd="1";const sib=[...el.parentNode.children].indexOf(el);el.dataset.fx=typeof type==="function"?type(el,i):type;el.style.setProperty("--d",String((sib%6)*(step||80)));el.classList.add("fx");fxObserve(el);});}
+/**
+ * Audience panel effect.
+ */
 function fxPanel(){if(REDUCED.matches)return;const a=$("#audPanel");if(!a)return;$$("h3",a).forEach(h=>{splitWords(h,"w",true);requestAnimationFrame(()=>h.classList.add("go"));});$$("p",a).forEach(p=>{splitWords(p,"wf");requestAnimationFrame(()=>p.classList.add("go"));});$$("li,.btn,.figimg",a).forEach((e,i)=>{e.classList.add("fx-new");e.style.setProperty("--d",String(i*80+120));});rollText(a);}
+/**
+ * Rolling hover text effect.
+ * @param {ParentNode} scope search root
+ */
 function rollText(scope){$$(".btn,.navlinks a,.hv-cta button,footer a,.linkish",scope).forEach(b=>{if(b.querySelector(".rl")||b.id==="vtoggle")return;[...b.childNodes].forEach(n=>{if(n.nodeType!==3||!n.nodeValue.trim())return;const t=n.nodeValue.trim();const r=document.createElement("span");r.className="rl";r.dataset.t=t;const s=document.createElement("span");s.textContent=t;r.appendChild(s);n.replaceWith(r);});});}
+/**
+ * Magnetic hover effect on buttons.
+ * @param {ParentNode} scope search root
+ */
 function magnet(scope){if(!matchMedia("(hover:hover)").matches)return;$$(".btn-primary,.hsr button,.cv .btn,.bigplay span,.hv-cta button",scope).forEach(b=>{if(b.dataset.mag)return;b.dataset.mag="1";b.addEventListener("pointermove",e=>{const r=b.getBoundingClientRect();b.style.translate=`${(e.clientX-r.left-r.width/2)*.18}px ${(e.clientY-r.top-r.height/2)*.3}px`;});b.addEventListener("pointerleave",()=>{b.style.translate="";});b.style.transition=(getComputedStyle(b).transition||"")+",translate .25s ease-out";});}
+/**
+ * Mount reveal and hover effects.
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 function mountFX(soft){
   mountGlobal();syncMotionLabel();
   if(REDUCED.matches){noteMotion();return;}
@@ -148,7 +233,15 @@ function mountFX(soft){
   $$(".mkt,.frail,.tier,.kpi",app).forEach(c=>c.classList.add("spot"));
   mountHero(soft);mountScrub();mountSectors();mountRoll();
 }
+/**
+ * Transition end handler.
+ * @param {Event} e DOM event
+ */
 function fxEnd(e){const t=e.target;if(t.classList&&t.classList.contains("fx")&&/^fx/.test(e.animationName)){t.classList.remove("fx","in");t.removeAttribute("data-fx");}}
+/**
+ * Set up the home hero video and text.
+ * @param {boolean} soft true on a background refresh: keep focus/scroll
+ */
 function mountHero(soft){
   const hv=$("#hv");if(!hv)return;
   const base=INTRO_MS;
@@ -166,7 +259,13 @@ function mountHero(soft){
   const q=$("#heroQ");if(q){const S=["halal snacks distributor in Malaysia","logistics JV partner in India","growth investors for agri-tech","solar EPC partner in South Africa","Islamic trade finance for exporters"];let a=0,c=0,back=false,tm,stop=false;const tick=()=>{if(stop)return;const s=S[a];c+=back?-1:1;q.placeholder="e.g. "+s.slice(0,c);if(!back&&c>=s.length){back=true;tm=setTimeout(tick,1900);return;}if(back&&c<=0){back=false;a=(a+1)%S.length;}tm=setTimeout(tick,back?18:42);};tm=setTimeout(tick,base+1400);q.addEventListener("focus",()=>{stop=true;clearTimeout(tm);q.placeholder="e.g. "+S[a];});onClean(()=>{stop=true;clearTimeout(tm);});}
 }
 let SCRUBS=[],SC_RAF=0;
+/**
+ * Scroll handler for parallax and reveal.
+ */
 function onScrollFX(){if(!SC_RAF)SC_RAF=requestAnimationFrame(()=>{SC_RAF=0;SCRUBS.forEach(f=>f());});}
+/**
+ * Scroll-linked effects.
+ */
 function mountScrub(){
   SCRUBS=[];const vh=()=>innerHeight;
   const hv=$("#hv");if(hv){const v=$("video",hv),c=$("#hvc");SCRUBS.push(()=>{const p=Math.min(1.2,scrollY/Math.max(1,hv.offsetHeight));if(p>1.1)return;v.style.setProperty("--vs",(1.02+p*.2).toFixed(3));c.style.setProperty("--hy",(p*90).toFixed(1)+"px");c.style.setProperty("--ho",Math.max(0,1-p*1.25).toFixed(3));});}
@@ -177,6 +276,9 @@ function mountScrub(){
   const m1=$("#mq1"),m2=$("#mq2");if(m1&&m2){let x=0,last=scrollY,raf,vis=true;const io=new IntersectionObserver(([e])=>{vis=e.isIntersecting;});io.observe(m1);const t=()=>{raf=requestAnimationFrame(t);if(!vis||document.hidden)return;const v=scrollY-last;last=scrollY;x+=.9+Math.abs(v)*.35;const w=m1.scrollWidth/4,skew=Math.max(-10,Math.min(10,v*.35));m1.style.transform=`translateX(${-(x%w)}px) skewX(${skew}deg)`;m2.style.transform=`translateX(${-w+(x%w)}px) skewX(${-skew}deg)`;};raf=requestAnimationFrame(t);onClean(()=>{cancelAnimationFrame(raf);io.disconnect();});}
   addEventListener("scroll",onScrollFX,{passive:true});onClean(()=>removeEventListener("scroll",onScrollFX));onScrollFX();
 }
+/**
+ * Horizontal sector scroller.
+ */
 function mountSectors(){
   const sec=$("#sectSec");if(!sec||innerWidth<1024)return;const track=$(".sects",sec),wrap=$(".wrap",sec),head=$(".section-h",sec);
   sec.classList.add("hs-pin");const sticky=document.createElement("div");sticky.className="hs-sticky";const hw=document.createElement("div");hw.className="wrap";hw.style.width="100%";hw.appendChild(head);sticky.appendChild(hw);sticky.appendChild(track);const bar=document.createElement("div");bar.className="hs-bar";bar.innerHTML="<i></i>";sticky.appendChild(bar);wrap.replaceWith(sticky);
@@ -186,9 +288,15 @@ function mountSectors(){
   addEventListener("resize",size);onClean(()=>removeEventListener("resize",size));
   const sects=$$(".sect",track);sects.forEach((s,i)=>{s.dataset.fx="rise";s.style.setProperty("--d",String(i*100));s.classList.add("fx");fxObserve(s);});
 }
+/**
+ * Rolling marquee.
+ */
 function mountRoll(){}
 /* app-wide pieces that live once */
 let INTRO_MS=0,GLOBAL_DONE=false,LAST_Y=0;
+/**
+ * Once-only app-wide effects (cursor, intro).
+ */
 function mountGlobal(){
   if(GLOBAL_DONE)return;GLOBAL_DONE=true;
   if(REDUCED.matches){const f0=$("#footMark");if(f0){fitMark(f0);addEventListener("resize",()=>fitMark(f0));if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>fitMark(f0));}return;}
@@ -197,7 +305,7 @@ function mountGlobal(){
   /* cursor */
   const cur=$("#cur");if(cur&&matchMedia("(hover:hover)").matches){let tx=0,ty=0,x=0,y=0;addEventListener("pointermove",e=>{tx=e.clientX;ty=e.clientY;cur.classList.add("on");cur.classList.toggle("hot",!!(e.target.closest&&e.target.closest("a,button,input,select,textarea,summary,canvas")));},{passive:true});const t=()=>{x+=(tx-x)*.2;y+=(ty-y)*.2;cur.style.transform=`translate3d(${x}px,${y}px,0)`;requestAnimationFrame(t);};t();}
   /* header */
-  const bar=$(".topbar");addEventListener("scroll",()=>{const y=scrollY;bar.classList.toggle("hide",y>LAST_Y&&y>420);LAST_Y=y;const h=document.documentElement.scrollHeight-innerHeight;const tp=$("#totop");if(tp){tp.classList.toggle("on",y>500);tp.style.setProperty("--p",(h>0?y/h:0).toFixed(3));}},{passive:true});
+  const bar=$(".topbar");addEventListener("scroll",()=>{const y=scrollY;/* header stays fixed in place: it no longer slides away on scroll down */LAST_Y=y;const h=document.documentElement.scrollHeight-innerHeight;const tp=$("#totop");if(tp){tp.classList.toggle("on",y>500);tp.style.setProperty("--p",(h>0?y/h:0).toFixed(3));}},{passive:true});
   /* back to top */
   const tp=document.createElement("button");tp.id="totop";tp.setAttribute("aria-label","Back to top");tp.innerHTML=`<svg viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="21"/></svg><svg style="position:static;transform:none;width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>`;tp.onclick=()=>scrollTo({top:0,behavior:"smooth"});document.body.appendChild(tp);
   /* spotlight and tilt */
@@ -214,16 +322,35 @@ function mountGlobal(){
   /* theme change */
   const tt=toggleTheme;if(document.startViewTransition){window.toggleTheme=function(){document.startViewTransition(()=>tt());};}
 }
+/**
+ * Play the first-visit intro.
+ */
 function playIntro(){
   INTRO_MS=1150;const el=document.createElement("div");el.id="intro";el.setAttribute("aria-hidden","true");el.innerHTML=`<b></b><b></b><b></b><div class="intro-m"><strong>WorldTradeAccess</strong><u></u></div>`;document.body.appendChild(el);const s=$("strong",el);splitChars(s);requestAnimationFrame(()=>s.classList.add("go"));
   setTimeout(()=>el.classList.add("open"),1150);setTimeout(()=>{el.remove();},2200);
 }
+/**
+ * Toggle reduced motion.
+ */
 function toggleMotion(){const off=REDUCED.matches;try{localStorage.setItem("wta_motion",off?"on":"off");}catch(e){}location.reload();}
+/**
+ * Update the motion toggle label.
+ */
 function syncMotionLabel(){const b=$("#motionToggle");if(b)b.textContent=REDUCED.matches?"Turn animations on":"Turn animations off";}
+/**
+ * Show the one-time motion note.
+ */
 function noteMotion(){if(motionPref()||$(".motion-note"))return;const n=document.createElement("div");n.className="motion-note";n.setAttribute("role","status");n.innerHTML=`<span style="flex:1 1 220px">Animations are off because of this device's motion setting.</span><button onclick="toggleMotion()">Turn on</button><button onclick="try{localStorage.setItem('wta_motion','off')}catch(e){};this.parentElement.remove()">Keep off</button>`;document.body.appendChild(n);}
 
+/**
+ * Tooltip effect.
+ */
 function mountTips(){}
 
+/**
+ * Fit the explainer mark.
+ * @param {HTMLElement} fm explainer mark element
+ */
 function fitMark(fm){const box=fm.parentElement,st=getComputedStyle(box),w=box.clientWidth-parseFloat(st.paddingLeft)-parseFloat(st.paddingRight);fm.style.fontSize="100px";fm.style.display="inline-block";const tw=fm.getBoundingClientRect().width;fm.style.display="";if(tw>0)fm.style.fontSize=Math.min(220,100*w/tw*.985)+"px";}
 /* ================= live animated explainer (replaces the film) ================= */
 function mountStory(){
@@ -278,4 +405,7 @@ function mountStory(){
 
 /* ================= boot ================= */
 export { REDUCED, enhance, softRoute, toggleMotion, syncMotionLabel, syncHeader };
+/**
+ * Start effects and route-change handling.
+ */
 export function initFx(){ addEventListener("hashchange",()=>softRoute()); }

@@ -1009,3 +1009,86 @@ html.no-motion .foot-mark .ch{opacity:1;transform:none}
 .pager .pgb[aria-current=page]{background:var(--navy,#0b1e3a);color:#fff;border-color:transparent}
 .pager .pgb:disabled{opacity:.4;cursor:default}
 .pager .gap{padding:0 2px}
+
+/* ===== Field colour-coding standard (SOP) =====
+   mandatory = red, auto-generated = blue (read-only), optional = green. State lives on the .field wrapper
+   (see utils/fields.js). Placed last so it wins over the generic .field label / input rules above. */
+.field--mandatory label,.field--mandatory .flabel{color:var(--red)}
+.field--mandatory input,.field--mandatory select,.field--mandatory textarea{border-color:var(--red)}
+.field--mandatory input:focus,.field--mandatory select:focus,.field--mandatory textarea:focus{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+.field--auto label,.field--auto .flabel{color:var(--blue-text)}
+.field--auto input,.field--auto select,.field--auto textarea{border-color:var(--blue);background:var(--blue-soft);color:var(--text);cursor:not-allowed}
+.field--optional label,.field--optional .flabel{color:var(--green-text)}
+.field--optional input,.field--optional select,.field--optional textarea{border-color:var(--green)}
+.field--optional input:focus,.field--optional select:focus,.field--optional textarea:focus{border-color:var(--green);box-shadow:0 0 0 4px var(--green-soft)}
+.field .opt-tag{color:var(--green-text);font-weight:500}
+.field .auto-tag{color:var(--blue-text);font-weight:500}
+/* a failed validation always reads as red, whatever the kind */
+.field--optional input.err,.field--optional select.err,.field--optional textarea.err,.field--auto input.err{border-color:var(--red)}
+.notice-expired{margin-top:14px;padding:10px 14px;border-radius:8px;background:var(--gold-soft);color:var(--gold-text);font-size:14px;border:1px solid var(--gold)}
+
+/* ===== Password eye button (utils/passwordToggle.js) ===== */
+.pw-wrap{position:relative;display:block;width:100%}
+.pw-wrap input{padding-right:46px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;display:grid;place-items:center;border:0;background:transparent;color:var(--text-soft);cursor:pointer;border-radius:8px}
+.pw-eye:hover{color:var(--text);background:var(--line-soft)}
+.pw-eye:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+/* ===== Header legibility =====
+   Transparent-over-hero mode uses white text, so it gets a dark scrim: if the hero media is slow or light the
+   links never turn white-on-white. Once scrolled, the header is solid and uses the normal dark text colours. */
+body.over-video .topbar:not(.scrolled):not(:has(.mobile-menu.open)){background:linear-gradient(180deg,rgba(7,24,49,.78),rgba(7,24,49,.35))}
+.topbar.scrolled{background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar.scrolled .brand{color:var(--text)}
+.topbar.scrolled .brand .tld{color:var(--blue-text)}
+.topbar.scrolled .navlinks a{color:var(--text-soft)}
+.topbar.scrolled .navlinks a:hover,.topbar.scrolled .navlinks a.active{color:var(--text)}
+.topbar.scrolled .nav-logo{background:transparent;padding:0}
+:root[data-theme="dark"] .topbar.scrolled .nav-logo{background:#fff}
+
+/* ===== Fixed header: never slides away and never changes height while scrolling ===== */
+.topbar.hide{transform:none}
+.topbar.scrolled .nav{height:72px}
+@media (max-width:480px){.topbar.scrolled .nav{height:64px}}
+
+/* ===== Field colour standard, refined: calm while filling, loud only when something is wrong =====
+   Resting state uses a faint tint of the kind colour (red = required, blue = auto, green = optional).
+   The strong red appears only after a failed validation (.err), with the message under the field. */
+.field--mandatory,.field--optional,.field--auto{
+  --k:var(--red);
+}
+.field--optional{--k:var(--green)}
+.field--auto{--k:var(--blue)}
+.field--mandatory label,.field--mandatory .flabel,
+.field--optional label,.field--optional .flabel,
+.field--auto label,.field--auto .flabel{color:color-mix(in srgb,var(--k) 38%,var(--text-soft));font-weight:600}
+.field--mandatory input,.field--mandatory select,.field--mandatory textarea,
+.field--optional input,.field--optional select,.field--optional textarea,
+.field--auto input,.field--auto select,.field--auto textarea{
+  border:1px solid color-mix(in srgb,var(--k) 24%,var(--line));
+  box-shadow:none;
+  transition:border-color .18s,box-shadow .18s,background-color .18s;
+}
+.field--mandatory input:focus,.field--mandatory select:focus,.field--mandatory textarea:focus,
+.field--optional input:focus,.field--optional select:focus,.field--optional textarea:focus{
+  border-color:color-mix(in srgb,var(--k) 55%,var(--line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--k) 12%,transparent);
+}
+.field--auto input,.field--auto select,.field--auto textarea{
+  background:color-mix(in srgb,var(--blue) 6%,var(--surface));
+  border-color:color-mix(in srgb,var(--blue) 30%,var(--line));
+  color:var(--text-soft);cursor:not-allowed;
+}
+.field .req{color:color-mix(in srgb,var(--red) 70%,var(--text-soft));font-weight:600}
+.field .opt-tag{color:color-mix(in srgb,var(--green) 55%,var(--text-faint));font-weight:500;font-size:.92em}
+.field .auto-tag{color:color-mix(in srgb,var(--blue) 55%,var(--text-faint));font-weight:500;font-size:.92em}
+
+/* Something is missing or wrong: now it is bright */
+.field input.err,.field select.err,.field textarea.err{
+  border-color:var(--red)!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--red) 16%,transparent)!important;
+}
+.field:has(input.err,select.err,textarea.err) label,.field:has(input.err,select.err,textarea.err) .flabel{color:var(--red)}
+.field:has(input.err,select.err,textarea.err) .req{color:var(--red)}
+.field .err-msg.show{display:block;color:var(--red);font-weight:500;animation:errIn .18s ease-out}
+@keyframes errIn{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
