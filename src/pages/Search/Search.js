@@ -3,6 +3,7 @@ import { carousel } from '../../components/Carousel/Carousel.js';
 import { ccChip, pIco, typeTag } from '../../components/Chips/Chips.js';
 import { ringHTML } from '../../components/ScoreRing/ScoreRing.js';
 import { toast } from '../../components/Toasts/toast.js';
+import { AI_NAME } from '../../constant/brand.js';
 import { ROLE_META, TYPE_LABEL } from '../../constant/roles.js';
 import { EXAMPLES, POP_SEARCH } from '../../constant/search.js';
 import useServices from './hooks/useServices.js';
@@ -24,7 +25,7 @@ export async function viewSearch(app, _a, soft) {
   <section><div class="wrap">
     <span class="kicker">The engine</span>
     <h1 class="page-h">Find your matches.</h1>
-    <p class="page-sub">Pick your goal and describe what you seek. Claude reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
+    <p class="page-sub">Pick your goal and describe what you seek. ${AI_NAME} reads every member's intent, answers your question directly, and ranks the best counterparties with the reasoning behind each match.</p>
     <form class="console" style="margin-top:20px" id="searchForm" novalidate>
       <span class="flabel" style="margin-bottom:11px">1 · I am here to…</span>
       <div class="roles" id="s_roles">${Object.entries(ROLE_META).map(([k, v]) => `<button type="button" class="role" data-role="${k}" aria-pressed="${k === state.SR.role}">${ico(v.ic)}${v.label}</button>`).join("")}</div>
@@ -36,7 +37,7 @@ export async function viewSearch(app, _a, soft) {
       <div class="examples" id="s_examples"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
         <button class="btn btn-primary" id="s_run" type="submit">${ico("sparkle")} Find matches <span class="arrow">→</span></button>
-        <span class="engine on" id="s_engine"><span class="live"></span><span>Claude answers live</span></span>
+        <span class="engine on" id="s_engine"><span class="live"></span><span>${AI_NAME} answers live</span></span>
       </div>
     </form>
     <div id="s_results" style="margin-top:24px"></div>
@@ -65,7 +66,7 @@ export async function runSearch() {
   const q = $("#s_intent")?.value.trim(), res = $("#s_results");
   if (!q) { validateField("s_intent", FIELD_KIND.MANDATORY, undefined, "Describe what you're looking for"); if (res) res.innerHTML = `<div class="empty">${ico("search")} Describe what you're looking for, then run the match.</div>`; if ($("#s_intent")) $("#s_intent").focus(); return; }
   state.SR.busy = true; if ($("#s_run")) $("#s_run").disabled = true;
-  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">Claude is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
+  if (res) res.innerHTML = `<div class="thinking" role="status"><div class="radar"><svg viewBox="0 0 44 44" fill="none" aria-hidden="true"><circle cx="22" cy="22" r="20" stroke="var(--line)" stroke-width="2"/><path d="M22 2 a20 20 0 0 1 20 20" stroke="var(--blue-bright)" stroke-width="2.5" stroke-linecap="round"/></svg></div><div><div style="font-weight:600">${AI_NAME} is reading every member's intent…</div><div class="muted">Writing an answer and ranking counterparties. This usually takes a few seconds.</div></div></div>`;
 
   const role = state.SR.role;
   const result = await _svc.runMatch({ goal: role, seek: q });
@@ -74,7 +75,7 @@ export async function runSearch() {
   if (result && result.matches) {
     // API returned real match data
     out = {
-      answer: result.answer || result.claude_answer || "",
+      answer: result.answer || "",
       matches: (result.matches || []).map(m => {
         const mem = m.member || m;
         return {
@@ -86,6 +87,11 @@ export async function runSearch() {
           action: m.action || "Request an introduction.",
           // Set only where members' past votes changed this result's place (backend: searchLearning.js).
           learned: m.learned || null,
+          // What this member lists for sale on their own website for what was searched, with the price
+          // their page displays (backend: services/productSearch.js).
+          products: Array.isArray(m.products) ? m.products : [],
+          // True when they are in these results BECAUSE of that listing, not because the engine ranked them.
+          fromProducts: !!m.from_products,
           m: {
             id: mem._id || mem.id || m.member_id,
             name: mem.company_name || mem.name,
@@ -99,26 +105,26 @@ export async function runSearch() {
           }
         };
       }),
-      next: result.next || result.follow_ups || [],
       live: true,
       q,
       role,
       poolN: result.pool_size || result.total || (result.matches || []).length,
       pool: result.matches || [],
-      // Needed by the follow-up chat below: the chat endpoint is scoped to one stored search, and a guest
-      // search has no user to authorise against, so POST /match hands back a token to prove it was ours.
+      // The stored search this result belongs to: feedback is scoped to it, and a guest search has no user to
+      // authorise against, so POST /match hands back a token to prove the search was ours.
       searchId: result.search_id || null,
       guestToken: result.guest_token || null,
+      // Set when the searcher's OWN listing matches what they searched for. Never a result - you are not
+      // introduced to yourself - but worth saying, or their own catalogue looks un-findable.
+      ownMatch: result.own_listing_match || null,
     };
   } else {
     toast("No matches", "No strong matches found. Try adjusting your description.", false);
-    out = { answer: "", matches: [], next: [], live: false, q, role, poolN: 0, pool: [], searchId: null, guestToken: null };
+    out = { answer: "", matches: [], live: false, q, role, poolN: 0, pool: [], searchId: null, guestToken: null, ownMatch: null };
   }
 
-  // A new search starts a new conversation - clear the transcript and release the in-flight guard, so a
-  // follow-up that was still streaming when the member re-searched can't leave the box permanently disabled.
-  // `votes` is per-search too: these are judgements about THESE results, not standing opinions.
-  state.SR.last = out; state.SR.chat = []; state.SR.chatBusy = false; state.SR.votes = {};
+  // `votes` are per-search: these are judgements about THESE results, not standing opinions.
+  state.SR.last = out; state.SR.votes = {};
   if (res) {
     renderMatches(res, out);
     revealResults(res);
@@ -220,21 +226,55 @@ function wireVotes(res, out) {
   };
 }
 
+/**
+ * The products a matched member lists for what was searched - the concrete answer behind the match: this
+ * company publishes this item at this price on their own site. Prices are shown exactly as that site
+ * displayed them, and an item they price on request shows no price rather than a made-up one.
+ * @param {object[]} products from the match
+ * @returns {string} HTML, or "" when none of their catalogue matched
+ */
+function matchProductsHTML(products) {
+  const list = (products || []).slice(0, 4);
+  if (!list.length) return "";
+  // Plain rows, not links: the next step is an introduction through the chamber, not a trip to the
+  // member's own checkout.
+  return `<div class="match-products">
+    <div class="match-products-hd">${ico("box")} Listed on their website</div>
+    ${list.map((p) => `<div class="mprod">
+      <span class="mprod-img">${p.image_url
+        ? `<img src="${esc(p.image_url)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+        : ""}${ico("box")}</span>
+      <span class="mprod-name">${esc(p.name)}</span>
+      ${p.price_text
+        ? `<span class="mprod-price">${esc(p.price_text)}${p.price_unit ? `<span class="mprod-unit">/${esc(p.price_unit)}</span>` : ""}</span>`
+        : `<span class="mprod-price mprod-price--none">On enquiry</span>`}
+    </div>`).join("")}
+  </div>`;
+}
+
+/**
+ * Says that the member's own listing matches this search, since it is deliberately never returned as a
+ * result. Without it, a member searching for what they sell sees their catalogue missing and reasonably
+ * concludes it is not findable.
+ * @param {object|null} own from the API
+ * @returns {string} HTML
+ */
+function ownMatchNote(own) {
+  if (!own || !own.products || !own.products.length) return "";
+  const names = own.products.map((p) => `<b>${esc(p.name)}</b>`).join(", ");
+  return `<div class="own-match">${ico("check")}<span>Your own listing matches this search &mdash; ${names}.
+    Other members searching this will find you. Your listing is never shown in your own results.</span></div>`;
+}
+
 export function renderMatches(res, out) {
   const list = out.matches || [];
   let html = "";
   if (out.live && out.answer) {
-    // The suggestion chips carry their question in data-q and are handled by one delegated listener below.
-    // They used to be inline onclick="askFollow(state.SR.last.next[i])", which could never fire: `askFollow`
-    // did not exist anywhere in the app, and `state` is a module import, not a global an inline handler can
-    // see - so clicking a suggestion just threw a ReferenceError into the console.
-    html += `<div class="answer" role="status" aria-live="polite"><div class="hd"><span class="ai">${ico("sparkle")}</span><b class="serif answer-title">Claude's answer</b><span class="badge-ai"><span class="live-dot" style="width:6px;height:6px;box-shadow:none"></span>Generated live</span></div><p>${bold(out.answer)}</p>${out.next && out.next.length ? `<div class="examples" id="answerNext" style="margin-top:14px">${out.next.map((n) => `<button type="button" class="chip" data-q="${esc(n)}">${ico("send")} ${esc(n)}</button>`).join("")}</div>` : ""}${out.searchId ? voteRow("answer", null, "Was this answer useful?") : ""}</div>`;
+    html += `<div class="answer" role="status" aria-live="polite"><div class="hd"><b class="serif answer-title">${AI_NAME}'s answer</b></div><p>${bold(out.answer)}</p>${out.searchId ? voteRow("answer", null, "Was this answer useful?") : ""}</div>`;
   }
+  html += ownMatchNote(out.ownMatch);
   if (!list.length) {
-    // Still offer the follow-up box: with nothing found, "why no matches?" / "what should I change?" is
-    // exactly when a member wants to ask something.
-    res.innerHTML = html + `<div class="empty">No member in the network matches that yet. Try different words, another goal, or one of the examples.</div>` + followUpCard(out);
-    wireFollowUp();
+    res.innerHTML = html + `<div class="empty">No member in the network matches that yet. Try different words, another goal, or one of the examples.</div>`;
     wireVotes(res, out);   // the answer above can still be rated even when nothing matched
     return;
   }
@@ -243,159 +283,20 @@ export function renderMatches(res, out) {
   const countLabel = nStrong
     ? `<span style="color:var(--blue-text)">${nStrong}</span> strong ${nStrong === 1 ? "match" : "matches"}${nRelated ? ` <span class="muted" style="font-weight:400">+ ${nRelated} related</span>` : ""}`
     : `<span style="color:var(--blue-text)">${list.length}</span> possible ${list.length === 1 ? "match" : "matches"}`;
-  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600">${countLabel}</div>${out.live ? `<span class="badge-ai">${ico("sparkle")} Ranked by Claude</span>` : `<span class="badge-ai off">${ico("cube")} On-device match</span>`}</div>${nStrong ? "" : `<p class="match-note">No member lists exactly what you searched. These only partly fit, so check each reason before reaching out.</p>`}<div class="match-grid">`;
+  html += `<div class="top" style="margin-bottom:14px;align-items:center"><div style="font-weight:600">${countLabel}</div></div>${nStrong ? "" : `<p class="match-note">No member lists exactly what you searched. These only partly fit, so check each reason before reaching out.</p>`}<div class="match-grid">`;
   list.forEach((d, i) => {
     const m = d.m, sc = Math.round(d.score);
     html += `<article class="match" style="animation-delay:${i * .06}s">${ringHTML(sc)}<div style="flex:1;min-width:0">
       <div class="top" style="gap:10px"><div style="display:flex;gap:11px;align-items:center;min-width:0">${imgTag(photo(m), "", "thumb")}<div style="min-width:0"><h3 class="name">${esc(m.name)}</h3><div class="loc">${ccChip(m.country)} ${esc(m.country)} · ${pIco(m.pillar)} ${esc(m.pillar)}</div></div></div>${typeTag(m.type)}</div>
-      <p class="reason">${bold(d.reason || "")}</p>${learnedBadge(d)}
+      <p class="reason">${bold(d.reason || "")}</p>${learnedBadge(d)}${matchProductsHTML(d.products)}
       <div class="action"><span class="ic">${ico("arrow")}</span><span>${esc(d.action || "Request an introduction.")}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="go('#/member/${esc(m.id)}')">${ico("handshake")} Request introduction</button><button class="btn btn-sm" onclick="go('#/member/${esc(m.id)}')">${ico("eye")} View profile</button></div>
       ${out.searchId ? voteRow("member", m.id, "Good match?") : ""}
     </div></article>`;
   });
   html += `</div>`;
-  html += followUpCard(out);
   res.innerHTML = html;
-  wireFollowUp();
   wireVotes(res, out);
-}
-
-/* ================= FOLLOW-UP CHAT =================
-   Asks a question against a search that already ran. The backend keeps the search and its ranked matches
-   (MatchSearch) plus the running transcript (MatchChatMessage), so each question is answered with the
-   matches on screen as context - we only send the question itself, never the whole history. */
-
-function followUpCard(out) {
-  // Needs a stored search to ask against. A keyword-fallback result still has one; only a failed request
-  // (searchId null) has nothing to attach a conversation to.
-  if (!out || !out.searchId) return "";
-  return `<div class="card chat">
-    <div class="top" style="align-items:center"><h2 style="font-size:18px;margin:0;display:flex;gap:9px;align-items:center"><span style="color:var(--blue-text);display:inline-flex">${ico("sparkle")}</span>Ask a follow-up</h2><span class="muted">Answered using these matches and the member directory</span></div>
-    <div class="chat-log" id="chatLog" aria-live="polite"></div>
-    <div class="examples" id="chatSugg"></div>
-    <form class="chat-form" id="chatForm" style="margin-top:12px">
-      <label class="vh" for="chatQ">Your follow-up question</label>
-      <input id="chatQ" placeholder="Ask about these matches…" autocomplete="off">
-      <button class="btn btn-primary" id="chatAsk" type="submit">${ico("send")}<span class="hide-sm">Ask</span></button>
-    </form>
-  </div>`;
-}
-
-function wireFollowUp() {
-  const form = $("#chatForm");
-  if (form) {
-    form.onsubmit = e => {
-      e.preventDefault();
-      const input = $("#chatQ");
-      const v = (input?.value || "").trim();
-      if (!v) return;
-      input.value = "";
-      askFollow(v);
-    };
-  }
-  // One delegated listener per chip container, so chips re-rendered later keep working.
-  for (const sel of ["#chatSugg", "#answerNext"]) {
-    const box = $(sel);
-    if (box) box.onclick = e => { const b = e.target.closest(".chip"); if (b && b.dataset.q) askFollow(b.dataset.q); };
-  }
-  paintSuggestions();
-  renderChat();
-}
-
-// Chips come from the search's own follow_up_suggestions. Drop any already asked so the list shrinks as the
-// conversation goes, rather than inviting the member to ask the same thing twice.
-function paintSuggestions() {
-  const box = $("#chatSugg");
-  if (!box) return;
-  const asked = new Set((state.SR.chat || []).filter(t => t.role === "user").map(t => t.content));
-  const left = ((state.SR.last && state.SR.last.next) || []).filter(s => !asked.has(s));
-  box.innerHTML = left.map(s => `<button type="button" class="chip" data-q="${esc(s)}">${ico("send")} ${esc(s)}</button>`).join("");
-  box.style.display = left.length ? "" : "none";
-}
-
-// Turns the assistant's short markdown (**bold**, "- " bullets, "1." lists) into safe HTML. Everything is escaped
-// first (bold() runs esc()), so a reply can never inject markup - only these few patterns become tags.
-function richText(s) {
-  const inline = (t) => bold(t.trim()).replace(/\*\*/g, "");      // stray unpaired ** are dropped
-  let html = "", list = null;
-  const close = () => { if (list) { html += `</${list}>`; list = null; } };
-  for (const raw of String(s || "").replace(/\r/g, "").split("\n")) {
-    const line = raw.trim();
-    let m;
-    if (!line) { close(); continue; }
-    if ((m = line.match(/^[-*•]\s+(.*)$/))) {
-      if (list !== "ul") { close(); html += "<ul>"; list = "ul"; }
-      html += `<li>${inline(m[1])}</li>`;
-    } else if ((m = line.match(/^\d+[.)]\s+(.*)$/))) {
-      if (list !== "ol") { close(); html += "<ol>"; list = "ol"; }
-      html += `<li>${inline(m[1])}</li>`;
-    } else {
-      close();
-      html += `<p>${inline(line.replace(/^#{1,6}\s+/, ""))}</p>`;
-    }
-  }
-  close();
-  return html;
-}
-
-function aiBubbleBody(text) {
-  return `<span class="bubble-who">${ico("sparkle")} Claude</span><div class="bubble-body">${text ? richText(text) : `<p class="muted">Thinking…</p>`}</div>`;
-}
-
-export function renderChat() {
-  const log = $("#chatLog");
-  if (!log) return;
-  log.innerHTML = (state.SR.chat || []).map((t, i) => t.role === "user"
-    ? `<div class="bubble me">${esc(t.content)}</div>`
-    : `<div class="bubble ai" id="bub${i}">${aiBubbleBody(t.content)}</div>`
-  ).join("");
-  log.scrollTop = log.scrollHeight;
-}
-
-export async function askFollow(question) {
-  const q = (question || "").trim();
-  const ctx = state.SR.last;
-  if (!q || !ctx || !ctx.searchId || state.SR.chatBusy) return;
-
-  state.SR.chatBusy = true;
-  const input = $("#chatQ"); const btn = $("#chatAsk");
-  if (input) input.disabled = true;
-  if (btn) btn.disabled = true;
-
-  state.SR.chat.push({ role: "user", content: q });
-  state.SR.chat.push({ role: "assistant", content: "" }); // empty renders as "Thinking…" until text arrives
-  const idx = state.SR.chat.length - 1;
-  renderChat();
-  paintSuggestions();
-
-  try {
-    const full = await _svc.followUpChat({
-      searchId: ctx.searchId,
-      question: q,
-      guestToken: ctx.guestToken,
-      // Paint each chunk straight into the bubble's text rather than re-rendering the log, so the answer
-      // streams in without the browser rebuilding (and scroll-jumping) the whole conversation.
-      onText: text => {
-        state.SR.chat[idx].content = text;
-        const bubble = $("#bub" + idx);
-        if (bubble) {
-          bubble.innerHTML = aiBubbleBody(text);
-          const log = $("#chatLog");
-          if (log) log.scrollTop = log.scrollHeight;
-        }
-      },
-    });
-    state.SR.chat[idx].content = full || "The advisor didn't return an answer. Please try asking again.";
-  } catch (err) {
-    state.SR.chat[idx].content = err?.message || "The advisor couldn't answer that just now. Try again in a moment.";
-  }
-
-  renderChat();
-  state.SR.chatBusy = false;
-  const input2 = $("#chatQ"); const btn2 = $("#chatAsk");
-  if (input2) { input2.disabled = false; input2.focus(); }
-  if (btn2) btn2.disabled = false;
 }
 
 // Keep localMatch for fallback use elsewhere

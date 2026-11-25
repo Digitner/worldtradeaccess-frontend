@@ -74,7 +74,7 @@ export async function viewEditListing(app) {
       </div>
       <div class="form-grid">
         <div class="field"><label for="e_name">${ico("building")}Company name</label><input id="e_name" value="${esc(user.company_name || user.name || "")}"><div class="err-msg" id="e_name_dup" role="alert">This company name is already registered.</div></div>
-        <div class="field"><label for="e_site">${ico("globe")}Website</label><input id="e_site" value="${esc(user.website || user.site || "")}"><div class="err-msg" id="e_site_dup" role="alert">This website is already registered.</div></div>
+        <div class="field"><label for="e_site">${ico("globe")}Website</label><input id="e_site" value="${esc(user.website || user.site || "")}"><div class="err-msg" id="e_site_dup" role="alert">This website is already registered.</div><div class="hint" style="margin-top:5px">Optional. If you add it, we read your site to fill in your &ldquo;About the business&rdquo; section and list your products and prices, so buyers searching for what you sell can find you.</div></div>
         <div class="field"><label for="e_person">${ico("user")}Contact person</label><input id="e_person" value="${esc(user.contact_person || user.person || "")}"></div>
         <div class="field"><label for="e_role">${ico("briefcase")}Designation</label><input id="e_role" value="${esc(user.designation || user.role_t || "")}"></div>
         <div class="field"><label for="e_email">${ico("mail")}Email</label><input id="e_email" type="email" value="${esc(user.email || "")}"><div class="err-msg">Enter a valid email</div><div class="err-msg" id="e_email_dup" role="alert">This email is already registered to another account.</div></div>

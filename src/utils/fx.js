@@ -318,7 +318,7 @@ function mountGlobal(){
   /* footer wordmark */
   const fm=$("#footMark");if(fm){fitMark(fm);addEventListener("resize",()=>fitMark(fm));if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>fitMark(fm));splitChars(fm);fitMark(fm);fm.style.setProperty("--cs","32ms");new IntersectionObserver(es=>{es.forEach(e=>{fm.classList.toggle("go",e.isIntersecting);});},{threshold:.2}).observe(fm);}
   /* results that arrive later */
-  new MutationObserver(ms=>{ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;if(n.closest&&n.closest("#s_results,#chatLog,#rankGrid")||n.matches&&n.matches(".bubble")){const list=n.matches(".match,.answer,.bubble")?[n]:$$(".match,.answer,.bubble",n);list.forEach((el,i)=>{el.classList.add("fx-new");el.style.setProperty("--d",String(i*110));});const a=n.matches(".answer")?n:n.querySelector&&n.querySelector(".answer");if(a){const p=$("p",a);if(p){splitWords(p,"wf");requestAnimationFrame(()=>p.classList.add("go"));}}}}));}).observe($("#app"),{childList:true,subtree:true});
+  new MutationObserver(ms=>{ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType!==1)return;if(n.closest&&n.closest("#s_results,#rankGrid")){const list=n.matches(".match,.answer")?[n]:$$(".match,.answer",n);list.forEach((el,i)=>{el.classList.add("fx-new");el.style.setProperty("--d",String(i*110));});const a=n.matches(".answer")?n:n.querySelector&&n.querySelector(".answer");if(a){const p=$("p",a);if(p){splitWords(p,"wf");requestAnimationFrame(()=>p.classList.add("go"));}}}}));}).observe($("#app"),{childList:true,subtree:true});
   /* theme change */
   const tt=toggleTheme;if(document.startViewTransition){window.toggleTheme=function(){document.startViewTransition(()=>tt());};}
 }

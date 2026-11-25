@@ -25,6 +25,9 @@ function useServices() {
             m.intro_already = true;
             m.intro_date = d.my_intro.createdAt;
           }
+          // The catalogue read from their own website - a sibling of `member` in the envelope, not a field
+          // on it, since it comes from its own collection (backend: models/MemberProduct.js).
+          m.products = Array.isArray(d.products) ? d.products : [];
         }
         return m;
       }
@@ -34,14 +37,20 @@ function useServices() {
     }
   };
 
-  const getSimilar = async (id) => {
+  /**
+   * Re-read my own website now: "About the business" plus the product catalogue it publishes. Only ever
+   * called on the member's own listing. Resolves to the result summary, or null on failure (toasted).
+   */
+  const refreshWebsite = async () => {
     try {
-      const response = await APIRequest.request("GET", `${ConfigAPIURL.members}/${id}/similar`, "");
+      const response = await APIRequest.request("POST", ConfigAPIURL.myRefreshWebsite, JSON.stringify({}));
       const d = response?.data;
-      if (d?.responseCode === 100 ) return d.result || d.members || [];
-      return [];
+      if (d?.responseCode === 100) return d.result || d;
+      publishNotification(d?.message || "Couldn't read your website just now.", "error");
+      return null;
     } catch {
-      return [];
+      publishNotification("Couldn't read your website just now.", "error");
+      return null;
     }
   };
 
@@ -83,7 +92,7 @@ function useServices() {
     }
   };
 
-  return { getMember, getSimilar, sendIntro, draftIntro };
+  return { getMember, refreshWebsite, sendIntro, draftIntro };
 }
 
 export default useServices;

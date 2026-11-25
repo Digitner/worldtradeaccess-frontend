@@ -28,6 +28,32 @@ function useServices() {
     }
   };
 
+  /**
+   * Read a company website and draft a starting-point profile from it (public endpoint - no account exists
+   * yet at this point in sign-up). The backend fetches the site server-side; the browser never does.
+   *
+   * Resolves to the extracted profile, or null. Deliberately SILENT on failure: this only ever pre-fills a
+   * form the person is about to fill in anyway, so an unreachable site is not worth an error toast.
+   *
+   * @param {string} url the website the person typed
+   * @returns {Promise<object|null>} {name, country, pillar, type, description, products, seeking_summary, ...}
+   */
+  const draftFromWebsite = async (url) => {
+    try {
+      const response = await APIRequest.request(
+        "POST",
+        ConfigAPIURL.draftProfile,
+        JSON.stringify({ source_type: "url", url })
+      );
+      const d = response?.data;
+      if (d?.responseCode !== 100) return null;
+      const draft = d.draft || d.result?.draft || d.result || null;
+      return draft?.extracted_profile || null;
+    } catch {
+      return null;
+    }
+  };
+
   const verifyOtpAndRegister = async (email, otp, profileData) => {
     try {
       const response = await APIRequest.request(
@@ -94,7 +120,7 @@ function useServices() {
     } catch { return null; }
   };
 
-  return { sendOtp, verifyOtpAndRegister, uploadImage, checkDuplicate };
+  return { sendOtp, verifyOtpAndRegister, uploadImage, checkDuplicate, draftFromWebsite };
 }
 
 export default useServices;

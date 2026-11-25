@@ -43,6 +43,12 @@ export function viewRegister(app) {
           <div class="err-msg" id="r_emailTaken" role="alert">This email is already registered. <button type="button" class="linkish" onclick="go('#/login')">Log in</button> instead.</div>
         </div>
         <div class="field" style="margin-top:14px">
+          <label for="r_site">${ico("globe")}Company website</label>
+          <input id="r_site" placeholder="company.com" autocomplete="url">
+          <div class="err-msg">Enter a valid website, like company.com</div>
+          <div class="hint" style="margin-top:5px">Optional. If you add it, we read your site and fill in the rest of this form for you &mdash; and list your products and prices so buyers searching for what you sell can find you.</div>
+        </div>
+        <div class="field" style="margin-top:14px">
           <label for="r_password">${ico("lock")}Password</label>
           <input id="r_password" type="password" autocomplete="new-password" placeholder="8+ characters, a letter and a number">
           <div class="err-msg">Use 8+ characters with at least one letter and one number</div>
@@ -80,12 +86,13 @@ export function viewRegister(app) {
             </div>
           </div>
         </div>
+        <div class="site-prefill" id="sitePrefill" style="display:none"></div>
         <div class="flabel" style="margin-bottom:10px">${ico("shield")}Membership type</div>
         <div class="choice-cards" id="tiers">${Object.entries(TIERS).map(([k, v]) => `<button type="button" class="choice" data-tier="${k}" aria-pressed="${k === tier}"><span class="t">${ico(v.ic)}${v.t}</span><span class="d" style="display:block">${v.d}</span></button>`).join("")}</div>
         <div class="form-grid" style="margin-top:22px">
           <div class="field"><label for="f_email">${ico("mail")}Verified email</label><input id="f_email" type="email" tabindex="-1"></div>
           <div class="field"><label for="f_name">${ico("building")}Company name</label><input id="f_name" placeholder="e.g. Malabar Spice Exports"><div class="err-msg">Enter your company name</div><div class="err-msg" id="f_name_dup" role="alert">This company name is already registered.</div></div>
-          <div class="field"><label for="f_site">${ico("globe")}Website</label><input id="f_site" placeholder="company.com"><div class="err-msg">Enter a valid website, like company.com</div><div class="err-msg" id="f_site_dup" role="alert">This website is already registered.</div></div>
+          <div class="field"><label for="f_site">${ico("globe")}Website</label><input id="f_site" placeholder="company.com"><div class="err-msg">Enter a valid website, like company.com</div><div class="err-msg" id="f_site_dup" role="alert">This website is already registered.</div><div class="hint" style="margin-top:5px">Optional. If you add it, we read your site to fill in your &ldquo;About the business&rdquo; section and list your products and prices, so buyers searching for what you sell can find you.</div></div>
           <div class="field"><label for="f_person">${ico("user")}Contact person</label><input id="f_person" placeholder="Full name"><div class="err-msg">Enter a contact name</div></div>
           <div class="field"><label for="f_role">${ico("briefcase")}Designation</label><input id="f_role" placeholder="e.g. Export Director"></div>
           <div class="field"><label for="f_phone">${ico("phone")}Phone</label><input id="f_phone" placeholder="+60 12 345 6789"><div class="err-msg">Enter a valid phone number, like +60 12 345 6789</div><div class="err-msg" id="f_phone_dup" role="alert">This phone number is already registered.</div></div>
@@ -111,7 +118,7 @@ export function viewRegister(app) {
     </form>
   </div></section>`;
 
-  const { uploadImage, checkDuplicate } = useServices();
+  const { uploadImage, checkDuplicate, draftFromWebsite } = useServices();
 
   // Colour-coding + validation spec (SOP). Red = required, green = optional (validated only if filled),
   // blue = auto-filled from the verified email and locked.
@@ -119,6 +126,7 @@ export function viewRegister(app) {
     r_email:     { kind: FIELD_KIND.MANDATORY, rule: validators.email, msg: "Enter a valid email, like name@company.com" },
     r_otp:       { kind: FIELD_KIND.MANDATORY, rule: validators.otp, msg: "Enter the 6-digit code sent to your email" },
     f_email:     { kind: FIELD_KIND.AUTO, autoValue: preEmail },
+    r_site:      { kind: FIELD_KIND.OPTIONAL, rule: validators.url, msg: "Enter a valid website, like company.com" },
     r_password:  { kind: FIELD_KIND.MANDATORY, rule: validators.password, msg: "Use 8+ characters with at least one letter and one number" },
     r_password2: { kind: FIELD_KIND.MANDATORY, rule: (v) => v === $("#r_password").value, msg: "Passwords do not match" },
     f_name:      { kind: FIELD_KIND.MANDATORY, msg: "Enter your company name" },
@@ -135,6 +143,7 @@ export function viewRegister(app) {
   const check = (ids) => ids.map((id) => validateField(id, spec[id].kind, spec[id].rule, spec[id].msg)).every(Boolean);
   let pendingEmail = preEmail;
   let pendingPassword = ""; // held in memory only until the account is created after the OTP
+  let pendingSite = "";     // the website typed on step 1, used to pre-fill step 3 and saved with the listing
 
   const setStep = (s) => {
     step = s;
@@ -244,15 +253,85 @@ export function viewRegister(app) {
     btn.textContent = "Resend";
   };
 
+  /**
+   * Read the website given on step 1 and fill in what it says, so the member edits a draft instead of
+   * typing their own published facts again.
+   *
+   * Only ever fills fields the member has left EMPTY - anything they have already typed wins, because a
+   * form that overwrites what someone just entered is worse than one that asks for everything. Nothing is
+   * submitted here: this is a draft on screen, and the member reviews and corrects it before creating the
+   * account. A site that can't be read simply leaves the form blank, with no error - they were going to
+   * fill it in by hand anyway.
+   *
+   * @param {string} url the website from step 1
+   * @returns {Promise<void>}
+   */
+  async function prefillFromWebsite(url) {
+    const note = $("#sitePrefill");
+    if (note) {
+      note.style.display = "";
+      note.innerHTML = `<span class="live"></span> Reading <b>${url.replace(/^https?:\/\//, "")}</b> to fill this in…`;
+    }
+
+    const draft = await draftFromWebsite(url);
+    if (!draft) {
+      if (note) note.style.display = "none";
+      return;
+    }
+
+    const filled = [];
+    const setIfEmpty = (id, value, label) => {
+      const el = $("#" + id);
+      if (!el || !value || el.value.trim()) return;
+      el.value = value;
+      filled.push(label);
+    };
+
+    setIfEmpty("f_name", draft.name, "company name");
+    // The seeking line is what the matcher reads, so prefer their own stated one over the description.
+    setIfEmpty("f_seek", draft.seeking_summary || draft.description, "what you seek");
+
+    // Selects: only move them to a value the list actually offers.
+    const selectIfOffered = (id, value, label) => {
+      const el = $("#" + id);
+      if (!el || !value) return;
+      const match = [...el.options].find((o) => o.value.toLowerCase() === String(value).toLowerCase()
+        || o.textContent.trim().toLowerCase() === String(value).toLowerCase());
+      if (match && el.selectedIndex === 0) { el.value = match.value; filled.push(label); }
+    };
+    selectIfOffered("f_country", draft.country, "country");
+    selectIfOffered("f_pillar", draft.pillar, "sector");
+
+    // Primary goal is a button group, not a select.
+    if (draft.type && ROLE_META[draft.type]) {
+      goal = draft.type;
+      $$("#goals .role").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.goal === goal)));
+      filled.push("primary goal");
+    }
+
+    $("#f_seek") && $("#f_seek").dispatchEvent(new Event("input"));
+
+    if (note) {
+      if (!filled.length) {
+        note.style.display = "none";
+        return;
+      }
+      note.innerHTML = `${ico("check")} Read from <b>${url.replace(/^https?:\/\//, "")}</b> &mdash; we filled in your ` +
+        `${filled.join(", ")}. Please check it and correct anything that is wrong.`;
+      note.classList.add("done");
+    }
+  }
+
   $("#regForm").onsubmit = async (e) => {
     e.preventDefault();
     const btn = $("#regBtn");
 
     // Step 1: email -> the server emails a code. NO account is created here.
     if (step === "email") {
-      if (!check(["r_email", "r_password", "r_password2"])) return;
+      if (!check(["r_email", "r_site", "r_password", "r_password2"])) return;
       pendingEmail = $("#r_email").value.trim().toLowerCase();
       pendingPassword = $("#r_password").value;
+      pendingSite = $("#r_site").value.trim();
       btn.disabled = true;
       btn.textContent = "Sending code…";
       const res = await registerSendOtp(pendingEmail);
@@ -276,6 +355,10 @@ export function viewRegister(app) {
       setStep("profile");
       wireGoals();
       wireDupCheck();
+      if (pendingSite) {
+        $("#f_site").value = pendingSite;
+        prefillFromWebsite(pendingSite);
+      }
       return;
     }
 
@@ -302,7 +385,7 @@ export function viewRegister(app) {
       email: pendingEmail,
       password: pendingPassword,
       company_name: $("#f_name").value.trim(),
-      website: $("#f_site").value.trim(),
+      website: $("#f_site").value.trim() || pendingSite,
       contact_person: $("#f_person").value.trim(),
       designation: $("#f_role").value.trim(),
       phone: $("#f_phone").value.trim(),

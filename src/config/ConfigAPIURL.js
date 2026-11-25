@@ -42,6 +42,7 @@ class ConfigAPIURL {
   static myActivityConsent = `${this.baseUrl}/api/me/activity/consent`;  // POST {status,version,method}
   static myRecommendations = `${this.baseUrl}/api/me/recommendations`;   // GET scored best matches
   static myCheckDuplicate = `${this.baseUrl}/api/me/check-duplicate`;
+  static myRefreshWebsite = `${this.baseUrl}/api/me/refresh-website`;  // POST - re-read my domain now
 
   // Members
   static members          = `${this.baseUrl}/api/members`;
@@ -49,16 +50,17 @@ class ConfigAPIURL {
   static membersTop       = `${this.baseUrl}/api/members/top`;
   static membersCheckDuplicate = `${this.baseUrl}/api/members/check-duplicate`;
   // GET /api/members/:id        → `${this.members}/${id}`
-  // GET /api/members/:id/similar→ `${this.members}/${id}/similar`
 
   // AI Match
   static searchPopular    = `${this.baseUrl}/api/search/popular`;
   static match            = `${this.baseUrl}/api/match`;
-  // POST /api/match/:search_id/chat → `${this.match}/${searchId}/chat`
 
   // Introductions
   static intros           = `${this.baseUrl}/api/intros`;
   static introsDraft      = `${this.baseUrl}/api/intros/draft`;
+
+  // Onboarding (public - no account yet): read a company website and draft a profile from it
+  static draftProfile     = `${this.baseUrl}/api/onboarding/draft-profile`;
 
   // Funding / Deals
   static funding          = `${this.baseUrl}/api/funding`;
