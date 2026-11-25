@@ -28,9 +28,10 @@ export function needsPassword(user) {
 export function enforcePasswordGate(user, hooks = {}) {
   const existing = document.getElementById(GATE_ID);
   if (!needsPassword(user)) { existing?.remove(); return null; }
-  if (existing) return existing;
+  if (existing) { existing.__hooks = { ...existing.__hooks, ...hooks }; return existing; }
 
   const el = document.createElement("div");
+  el.__hooks = hooks;
   el.id = GATE_ID;
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-modal", "true");
@@ -53,7 +54,7 @@ export function enforcePasswordGate(user, hooks = {}) {
 
   const pw = el.querySelector("#pg_pw"), pw2 = el.querySelector("#pg_pw2");
   /** Toggle the error state of one input. @param {HTMLInputElement} i @param {boolean} bad */
-  const mark = (i, bad) => { i.classList.toggle("err", bad); i.parentElement.querySelector(".err-msg").classList.toggle("show", bad); };
+  const mark = (i, bad) => { i.classList.toggle("err", bad); i.closest(".field").querySelector(".err-msg").classList.toggle("show", bad); };
   // Esc / outside clicks must not close it.
   el.addEventListener("keydown", (e) => { if (e.key === "Escape") e.preventDefault(); });
 
@@ -67,16 +68,19 @@ export function enforcePasswordGate(user, hooks = {}) {
     const r = await setFirstPassword(pw.value);
     if (!r.ok) {
       btn.disabled = false; btn.textContent = "Save password";
-      pw.parentElement.querySelector(".err-msg").textContent = r.message || "Could not save the password.";
+      pw.closest(".field").querySelector(".err-msg").textContent = r.message || "Could not save the password.";
       mark(pw, true);
       return;
     }
     user.password_set = true;
     LocalStorage.setUser(user, LocalStorage.memberDetails);
     el.remove();
-    hooks.onDone && hooks.onDone();
+    el.__hooks.onDone && el.__hooks.onDone();
   };
-  el.querySelector("#pg_logout").onclick = () => hooks.onLogout && hooks.onLogout();
+  el.querySelector("#pg_logout").onclick = () => {
+    if (el.__hooks.onLogout) return el.__hooks.onLogout();
+    import("../pages/Login/Login.js").then((m) => m.logout());
+  };
   setTimeout(() => pw.focus(), 30);
   return el;
 }
