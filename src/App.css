@@ -427,3 +427,15 @@ body.wta-admin-mode #root > nav,body.wta-admin-mode #root > footer{display:none!
 /* "Your own listing matches this search" - shown because a member's own listing is never a result. */
 .own-match{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;padding:10px 13px;border-radius:10px;font-size:13px;line-height:1.5;background:var(--green-soft);border:1px solid color-mix(in srgb,var(--green) 30%,transparent);color:var(--green-text)}
 .own-match .ico{width:15px;height:15px;flex:none;margin-top:2px}
+
+/* A member's own website, wherever it is shown. It used to inherit the body colour and read as plain text,
+   so nobody could tell it opened anything. The underline is present at rest rather than only on hover -
+   colour alone is not an affordance, and is invisible to anyone who cannot distinguish it. */
+.weblink{color:var(--blue-text);font-weight:600;display:inline-flex;align-items:center;gap:4px;border-radius:4px;
+  text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;
+  text-decoration-color:color-mix(in srgb,var(--blue) 45%,transparent);transition:color .15s,text-decoration-color .15s}
+.weblink::after{content:"↗";font-size:.82em;line-height:1;opacity:.6;transition:opacity .15s,transform .15s}
+.weblink:hover{color:var(--blue);text-decoration-color:currentColor}
+.weblink:hover::after{opacity:1;transform:translate(1px,-1px)}
+.weblink:focus-visible{outline:2px solid var(--blue);outline-offset:3px;text-decoration-color:currentColor}
+@media (prefers-reduced-motion:reduce){.weblink,.weblink::after{transition:none}.weblink:hover::after{transform:none}}

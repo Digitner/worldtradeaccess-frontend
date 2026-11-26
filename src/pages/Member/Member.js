@@ -18,6 +18,28 @@ const _svc = useServices();
    inferred - so a short section is a truthful one, and a domain that couldn't be read shows nothing at all
    rather than an empty shell that reads like the company has nothing to show. */
 
+/**
+ * The member's website as a link that looks like one.
+ *
+ * It was previously an <a> carrying nothing but `font-weight:600`, so it inherited the body colour and read
+ * as plain text - people had no way to tell it could be opened. The `.weblink` class supplies the colour,
+ * the underline and the "opens elsewhere" arrow.
+ *
+ * Also the one place the scheme is added: members type "campusshoes.com", and an href without a scheme is
+ * resolved against this app's own origin, which would navigate into the directory instead of out to them.
+ *
+ * @param {string} site the website as the member entered it
+ * @param {string} [style] extra inline style for the context it sits in
+ * @returns {string} HTML, or "" when there is no website
+ */
+function websiteLink(site, style) {
+  const raw = String(site || "").trim();
+  if (!raw) return "";
+  const href = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return `<a class="weblink" href="${esc(href)}" target="_blank" rel="noopener"` +
+    `${style ? ` style="${style}"` : ""} title="Opens ${esc(hostOf(raw))} in a new tab">${esc(raw)}</a>`;
+}
+
 /** The host a profile was read from, for the "Read from <domain>" line. */
 function hostOf(url) {
   const raw = String(url || "").trim();
@@ -254,7 +276,7 @@ export async function viewMember(app, id) {
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span style="display:inline-flex;gap:5px;align-items:center;font-size:13px">${ccChip(member.country)} ${esc(member.country)}</span>
             ${member.pillar ? `<span class="muted" style="font-size:13px">·</span><span style="display:inline-flex;gap:5px;align-items:center;font-size:13px">${pIco(member.pillar)} ${esc(member.pillar)}</span>` : ""}
-            ${member.site ? `<span class="muted" style="font-size:13px">·</span><a href="${esc(member.site.startsWith('http') ? member.site : 'https://'+member.site)}" target="_blank" rel="noopener" style="font-size:13px;display:inline-flex;gap:4px;align-items:center">${ico("globe")} ${esc(member.site)}</a>` : ""}
+            ${member.site ? `<span class="muted" style="font-size:13px">·</span><span style="display:inline-flex;gap:4px;align-items:center;font-size:13px">${ico("globe")}${websiteLink(member.site)}</span>` : ""}
           </div>
         </div>
       </div>
@@ -290,7 +312,7 @@ export async function viewMember(app, id) {
               ${member.site ? `
               <div style="display:flex;gap:12px;align-items:center">
                 <span style="width:36px;height:36px;border-radius:10px;background:var(--blue-soft,rgba(59,130,246,.1));color:var(--blue-text,#3b82f6);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${ico("globe")}</span>
-                <a href="${esc(member.site.startsWith('http') ? member.site : 'https://'+member.site)}" target="_blank" rel="noopener" style="font-weight:600">${esc(member.site)}</a>
+                ${websiteLink(member.site, "font-size:15px")}
               </div>` : ""}
             </div>
           </div>` : ""}

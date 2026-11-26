@@ -36,8 +36,7 @@ export async function viewSearch(app, _a, soft) {
       <div class="err-msg">Describe what you're looking for</div></div>
       <div class="examples" id="s_examples"></div>
       <div style="display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="s_run" type="submit">${ico("sparkle")} Find matches <span class="arrow">→</span></button>
-        <span class="engine on" id="s_engine"><span class="live"></span><span>${AI_NAME} answers live</span></span>
+        <button class="btn btn-primary" id="s_run" type="submit">Find matches <span class="arrow">→</span></button>
       </div>
     </form>
     <div id="s_results" style="margin-top:24px"></div>
