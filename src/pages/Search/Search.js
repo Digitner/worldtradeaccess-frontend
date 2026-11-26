@@ -88,7 +88,6 @@ export async function runSearch() {
           learned: m.learned || null,
           // What this member lists for sale on their own website for what was searched, with the price
           // their page displays (backend: services/productSearch.js).
-          products: Array.isArray(m.products) ? m.products : [],
           // True when they are in these results BECAUSE of that listing, not because the engine ranked them.
           fromProducts: !!m.from_products,
           m: {
@@ -226,32 +225,6 @@ function wireVotes(res, out) {
 }
 
 /**
- * The products a matched member lists for what was searched - the concrete answer behind the match: this
- * company publishes this item at this price on their own site. Prices are shown exactly as that site
- * displayed them, and an item they price on request shows no price rather than a made-up one.
- * @param {object[]} products from the match
- * @returns {string} HTML, or "" when none of their catalogue matched
- */
-function matchProductsHTML(products) {
-  const list = (products || []).slice(0, 4);
-  if (!list.length) return "";
-  // Plain rows, not links: the next step is an introduction through the chamber, not a trip to the
-  // member's own checkout.
-  return `<div class="match-products">
-    <div class="match-products-hd">${ico("box")} Listed on their website</div>
-    ${list.map((p) => `<div class="mprod">
-      <span class="mprod-img">${p.image_url
-        ? `<img src="${esc(p.image_url)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
-        : ""}${ico("box")}</span>
-      <span class="mprod-name">${esc(p.name)}</span>
-      ${p.price_text
-        ? `<span class="mprod-price">${esc(p.price_text)}${p.price_unit ? `<span class="mprod-unit">/${esc(p.price_unit)}</span>` : ""}</span>`
-        : `<span class="mprod-price mprod-price--none">On enquiry</span>`}
-    </div>`).join("")}
-  </div>`;
-}
-
-/**
  * Says that the member's own listing matches this search, since it is deliberately never returned as a
  * result. Without it, a member searching for what they sell sees their catalogue missing and reasonably
  * concludes it is not findable.
@@ -287,7 +260,7 @@ export function renderMatches(res, out) {
     const m = d.m, sc = Math.round(d.score);
     html += `<article class="match" style="animation-delay:${i * .06}s">${ringHTML(sc)}<div style="flex:1;min-width:0">
       <div class="top" style="gap:10px"><div style="display:flex;gap:11px;align-items:center;min-width:0">${imgTag(photo(m), "", "thumb")}<div style="min-width:0"><h3 class="name">${esc(m.name)}</h3><div class="loc">${ccChip(m.country)} ${esc(m.country)} · ${pIco(m.pillar)} ${esc(m.pillar)}</div></div></div>${typeTag(m.type)}</div>
-      <p class="reason">${bold(d.reason || "")}</p>${learnedBadge(d)}${matchProductsHTML(d.products)}
+      <p class="reason">${bold(d.reason || "")}</p>${learnedBadge(d)}
       <div class="action"><span class="ic">${ico("arrow")}</span><span>${esc(d.action || "Request an introduction.")}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="go('#/member/${esc(m.id)}')">${ico("handshake")} Request introduction</button><button class="btn btn-sm" onclick="go('#/member/${esc(m.id)}')">${ico("eye")} View profile</button></div>
       ${out.searchId ? voteRow("member", m.id, "Good match?") : ""}

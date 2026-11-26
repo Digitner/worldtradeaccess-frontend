@@ -62,70 +62,6 @@ function factRow(label, items, icon) {
 }
 
 /**
- * One product tile: its image, name, SKU and the price the member's own site publishes.
- *
- * Deliberately NOT a link. This is a directory listing of what a member sells, not a storefront - the action
- * here is to request an introduction through the chamber, and sending a buyer off to the member's own
- * checkout would quietly route the relationship around it.
- *
- * A product with no published price says so plainly rather than being hidden - a buyer still wants to know
- * the member makes it, and "ask them" is a real answer. Nothing here is ever a made-up figure.
- *
- * @param {object} p product from the API
- * @returns {string} HTML
- */
-function productCard(p) {
-  const price = p.price_text
-    ? `<span class="pc-price">${esc(p.price_text)}${p.price_unit ? `<span class="pc-unit">/${esc(p.price_unit)}</span>` : ""}</span>`
-    : `<span class="pc-price pc-price--none">On enquiry</span>`;
-  return `<article class="pcard">
-    <div class="pcard-img">${p.image_url
-      ? `<img src="${esc(p.image_url)}" alt="" loading="lazy" decoding="async" onerror="this.closest('.pcard-img').classList.add('is-empty');this.remove()">`
-      : ""}<span class="pcard-img-none">${ico("box")}</span></div>
-    <div class="pcard-body">
-      <h3 class="pcard-name" title="${esc(p.name)}">${esc(p.name)}</h3>
-      ${p.sku ? `<div class="pcard-sku">${esc(p.sku)}</div>` : ""}
-      <div class="pcard-foot">${price}</div>
-    </div>
-  </article>`;
-}
-
-/**
- * The product catalogue read from the member's website.
- * @param {object} member view model (needs `catalog`, `business`)
- * @returns {string} HTML, or "" when their site publishes no catalogue
- */
-function catalogHTML(member) {
-  const list = member.catalog || [];
-  if (!list.length) return "";
-  const host = hostOf((member.business && member.business.source_url) || member.site);
-  const priced = list.filter((p) => p.price_text);
-  // Priced items first: a buyer scanning a shop front is looking for the figure, and a wall of "on enquiry"
-  // at the top makes a catalogue that does publish prices look like one that doesn't.
-  const ordered = [...priced, ...list.filter((p) => !p.price_text)];
-  // Long catalogues are collapsed rather than truncated - hiding stock entirely would misrepresent the
-  // member's range, but 60 tiles would bury everything below this card.
-  const FOLD = 8;
-  const rest = ordered.slice(FOLD);
-
-  return `
-    <div style="background:var(--surface-2,var(--surface));border:1px solid var(--line);border-radius:14px;padding:22px 24px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.5;display:flex;gap:6px;align-items:center">${ico("box")} Products &amp; prices</div>
-        <span class="muted" style="font-size:11.5px">${list.length} listed${priced.length ? ` · ${priced.length} priced` : ""}</span>
-      </div>
-      <p class="muted" style="margin:6px 0 16px;font-size:12px">Listed on ${host ? `<b>${esc(host)}</b>` : "their website"}. Prices are as their site publishes them and may have changed &mdash; confirm before ordering.</p>
-      <div class="pgrid">${ordered.slice(0, FOLD).map(productCard).join("")}</div>
-      ${rest.length ? `
-        <div class="pgrid" id="pgridMore" hidden>${rest.map(productCard).join("")}</div>
-        <button type="button" class="btn btn-sm btn-block" id="pgridToggle" style="margin-top:12px">
-          ${ico("grid")} Show all ${list.length} products
-        </button>` : ""}
-    </div>`;
-}
-
-
-/**
  * The "About the business" card shown under Contact.
  * @param {object} member view model (needs `business`, `site`, `name`)
  * @returns {string} HTML, or "" when there is nothing truthful to show
@@ -221,8 +157,6 @@ export async function viewMember(app, id) {
     // Read from the member's own business domain at sign-up/login (backend:
     // api/controller/services/businessProfile.js). Everything in here is the website's own wording.
     business: m.business_profile || null,
-    // What they list for sale on that website, with the price their own page displays.
-    catalog: Array.isArray(m.products) ? m.products : [],
   };
 
   logActivity("View", member.name, { member_id: member.id, sector: member.pillar, country: member.country, goal: member.type });
@@ -320,9 +254,6 @@ export async function viewMember(app, id) {
           <!-- About the business: extracted from the member's own domain -->
           ${aboutBusinessHTML(member)}
 
-          <!-- What they sell, read from that same website -->
-          ${catalogHTML(member)}
-
           <!-- Gallery -->
           ${gal.length ? `
           <div style="background:var(--surface-2,var(--surface));border:1px solid var(--line);border-radius:14px;padding:22px 24px">
@@ -388,35 +319,15 @@ export async function viewMember(app, id) {
     }
   </style>`;
 
-  // Reveal the rest of a long catalogue in place, rather than paging or truncating it.
-  const pToggle = $("#pgridToggle");
-  if (pToggle) pToggle.onclick = () => {
-    const more = $("#pgridMore");
-    if (!more) return;
-    const showing = !more.hidden;
-    more.hidden = showing;
-    pToggle.innerHTML = showing
-      ? `${ico("grid")} Show all ${(member.catalog || []).length} products`
-      : `${ico("grid")} Show fewer`;
-  };
-
-  // Owner-only: read my own site again, then re-render the page so the new About text and prices are the
-  // ones on screen. Disabled while it runs, because a crawl takes seconds and a second click would start a
-  // second one.
+  // Owner-only: read my own site again, then re-render the page so the new About text is the one on screen.
+  // Disabled while it runs, because a read takes seconds and a second click would start a second one.
   const rescan = $("#rescanSite");
   if (rescan) rescan.onclick = async () => {
     rescan.disabled = true;
     rescan.innerHTML = ico("refresh") + " Reading your website…";
     const r = await _svc.refreshWebsite();
     if (r) {
-      // Say how many carried a price, not just how many were found: "12 products, 0 with prices" tells the
-      // member their site quotes on request (or renders prices in JavaScript), which "12 products" does not.
-      const n = r.products_found, priced = r.prices_found || 0;
-      toast("Website read", !n
-        ? `Read ${r.domain}. No product listings were found on it.`
-        : priced
-          ? `Found ${n} product${n === 1 ? "" : "s"} on ${r.domain}, ${priced} with prices.`
-          : `Found ${n} product${n === 1 ? "" : "s"} on ${r.domain}, but no prices - your site may quote on request, or show prices only after the page loads.`);
+      toast("Website read", `Read ${r.domain}. Your business details have been refreshed from it.`);
       viewMember(app, id);
       return;
     }
